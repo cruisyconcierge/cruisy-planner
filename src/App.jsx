@@ -31,42 +31,36 @@ const AVAILABLE_DESTINATIONS = [
 ];
 
 // --- GLOBAL GEAR (Affiliate Links) ---
-// INSTRUCTIONS:
-// 1. Upload your product images to WordPress Media Library.
-// 2. Copy the File URL and paste it into the 'image' field.
-// 3. Paste your Amazon/CJ/Partner link into 'affiliateLink'.
 const GLOBAL_GEAR = [
   { 
     name: 'Reef-Safe Sunscreen', 
     price: 15, 
-    // PASTE IMAGE URL BELOW
     image: 'https://images.unsplash.com/photo-1526947425960-94d036271d6d?auto=format&fit=crop&q=80&w=200', 
-    // PASTE AFFILIATE LINK BELOW
     affiliateLink: 'https://amazon.com' 
   },
   { 
     name: 'Waterproof Phone Pouch', 
     price: 25, 
-    // PASTE IMAGE URL BELOW
     image: 'https://images.unsplash.com/photo-1585338107529-13f953b6f280?auto=format&fit=crop&q=80&w=200', 
-    // PASTE AFFILIATE LINK BELOW
     affiliateLink: 'https://amazon.com' 
   },
 ];
 
 // --- 2. API LOGIC ---
 
-const fetchRealActivities = async (destination) => {
+const fetchRealActivities = async (destinationSelection) => {
   try {
+    const searchTerm = destinationSelection.split(',')[0].trim();
+    
     // 1. Fetch Location Hub
-    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${destination}&acf_format=standard`);
+    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${searchTerm}&acf_format=standard`);
     const destData = await destRes.json();
     
     const hub = destData.length > 0 ? destData[0] : {}; 
     const acf = hub.acf || {};
 
     // 2. Fetch Activities
-    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${destination}&_embed&per_page=20&acf_format=standard`);
+    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${searchTerm}&_embed&per_page=20&acf_format=standard`);
     const actData = await actRes.json();
 
     // 3. Map WordPress Data
@@ -94,30 +88,30 @@ const fetchRealActivities = async (destination) => {
         name: "Vrbo", 
         icon: Home, 
         color: "bg-blue-800",
-        url: acf.hotel_affiliate_link || `https://www.vrbo.com/search/keywords:${encodeURIComponent(destination)}`
+        url: acf.hotel_affiliate_link || `https://www.vrbo.com/search/keywords:${encodeURIComponent(searchTerm)}`
       },
       { 
         name: "Booking.com", 
         icon: Hotel, 
         color: "bg-blue-600",
-        url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(destination)}`
+        url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
       },
     ];
 
     return {
-      destinationName: hub.title?.rendered || destination,
-      destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${destination}`,
+      destinationName: hub.title?.rendered || searchTerm, 
+      destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${searchTerm}`,
       stayPartners: stayPartners,
-      flightLink: acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${destination.substring(0,3)}`,
-      carLink: acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(destination)}`,
-      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${destination}+dining`,
+      flightLink: acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`,
+      carLink: acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`,
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
       weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
     };
 
   } catch (error) {
     console.error("WP Fetch Error:", error);
-    return null; 
+    return { error: true, message: error.message }; 
   }
 };
 
@@ -149,7 +143,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
-      {/* UPDATED: Semibold font and corrected text */}
       <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
         The easiest way to plan your getaway. Find curated activities and book hotels, flights, rental cars, and trip essentials instantly.
       </p>
@@ -169,7 +162,8 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
-                <option value="" disabled>Select a Featured Destination...</option>
+                {/* UPDATED: Shorter placeholder for mobile */}
+                <option value="" disabled>Destinations</option>
                 {AVAILABLE_DESTINATIONS.map(dest => (
                   <option key={dest} value={dest}>{dest}</option>
                 ))}
@@ -441,8 +435,16 @@ export default function App() {
     // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
     
-    if (!results || results.activities.length === 0) {
-        alert("No activities found for this location yet! Try 'Key West' (or whatever you entered in WP)");
+    // BETTER ERROR HANDLING
+    if (!results || results.error) {
+        alert("Connection Error: Could not talk to the website. Check CORS settings.");
+        setView('search');
+        return;
+    }
+
+    if (results.activities.length === 0) {
+        // Show the user exactly what we searched for to help debug
+        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
         setView('search');
         return;
     }
@@ -493,7 +495,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]" style={{ fontFamily: BRAND.fontBody }}>
+    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
