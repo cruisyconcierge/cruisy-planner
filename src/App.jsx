@@ -3,10 +3,11 @@ import {
   MapPin, Calendar, DollarSign, Plane, Hotel, 
   Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info
+  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown
 } from 'lucide-react';
 
-// --- Branding ---
+// --- 1. CONFIGURATION & CONSTANTS ---
+
 const BRAND = {
   primary: '#34a4b8',
   primaryHover: '#2a8a9b',
@@ -15,17 +16,56 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
-// --- LIVE WORDPRESS API FETCHER ---
+// --- SUPPORTED DESTINATIONS LIST (Full Names) ---
+const AVAILABLE_DESTINATIONS = [
+  "Key West, Florida",
+  "Nassau, Bahamas",
+  "St Thomas, US Virgin Islands",
+  "Honolulu, Hawaii",
+  "Cozumel, Mexico",
+  "Sydney, Australia",
+  "Barcelona, Spain",
+  "Chania, Crete (Greece)",
+  "Orlando, Florida",
+  "Miami, Florida"
+];
+
+// --- GLOBAL GEAR (Affiliate Links) ---
+// INSTRUCTIONS:
+// 1. Upload your product images to WordPress Media Library.
+// 2. Copy the File URL and paste it into the 'image' field.
+// 3. Paste your Amazon/CJ/Partner link into 'affiliateLink'.
+const GLOBAL_GEAR = [
+  { 
+    name: 'Reef-Safe Sunscreen', 
+    price: 15, 
+    // PASTE IMAGE URL BELOW
+    image: 'https://images.unsplash.com/photo-1526947425960-94d036271d6d?auto=format&fit=crop&q=80&w=200', 
+    // PASTE AFFILIATE LINK BELOW
+    affiliateLink: 'https://amazon.com' 
+  },
+  { 
+    name: 'Waterproof Phone Pouch', 
+    price: 25, 
+    // PASTE IMAGE URL BELOW
+    image: 'https://images.unsplash.com/photo-1585338107529-13f953b6f280?auto=format&fit=crop&q=80&w=200', 
+    // PASTE AFFILIATE LINK BELOW
+    affiliateLink: 'https://amazon.com' 
+  },
+];
+
+// --- 2. API LOGIC ---
+
 const fetchRealActivities = async (destination) => {
   try {
-    // 1. Fetch the Location Hub
+    // 1. Fetch Location Hub
     const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${destination}&acf_format=standard`);
     const destData = await destRes.json();
     
     const hub = destData.length > 0 ? destData[0] : {}; 
     const acf = hub.acf || {};
 
-    // 2. Fetch the Activities
+    // 2. Fetch Activities
     const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${destination}&_embed&per_page=20&acf_format=standard`);
     const actData = await actRes.json();
 
@@ -64,12 +104,6 @@ const fetchRealActivities = async (destination) => {
       },
     ];
 
-    // HARDCODED GEAR
-    const products = [
-       { name: 'Reef-Safe Sunscreen', price: 15, image: 'https://images.unsplash.com/photo-1526947425960-94d036271d6d?auto=format&fit=crop&q=80&w=200', affiliateLink: 'https://amazon.com' },
-       { name: 'Waterproof Phone Pouch', price: 25, image: 'https://images.unsplash.com/photo-1585338107529-13f953b6f280?auto=format&fit=crop&q=80&w=200', affiliateLink: 'https://amazon.com' },
-    ];
-
     return {
       destinationName: hub.title?.rendered || destination,
       destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${destination}`,
@@ -78,7 +112,6 @@ const fetchRealActivities = async (destination) => {
       carLink: acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(destination)}`,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${destination}+dining`,
       activities: mappedActivities,
-      products: products, 
       weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
     };
 
@@ -88,7 +121,8 @@ const fetchRealActivities = async (destination) => {
   }
 };
 
-// --- UI Components ---
+// --- 3. UI COMPONENTS ---
+
 const Button = ({ children, onClick, variant = 'primary', className = '', type='button', disabled = false, fullWidth = false, style={} }) => {
   const baseStyle = `px-6 py-3 rounded-lg font-bold transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 ${fullWidth ? 'w-full' : ''} print:hidden`;
   const variants = {
@@ -107,7 +141,7 @@ const Card = ({ children, className = '' }) => (
   <div className={`bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden ${className} print:shadow-none print:border-none`}>{children}</div>
 );
 
-// --- Sub-Views (Moved Outside to Fix Focus Bug) ---
+// --- 4. SUB-VIEWS ---
 
 const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
   <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
@@ -115,23 +149,43 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
-      <p className="text-lg text-gray-500 font-light max-w-lg mx-auto">
-        The easiest way to plan your getaway. Find curated activities and book hotels instantly.
+      {/* UPDATED: Semibold font and corrected text */}
+      <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
+        The easiest way to plan your getaway. Find curated activities and book hotels, flights, rental cars, and trip essentials instantly.
       </p>
     </div>
     <Card className="p-6 md:p-8 relative z-10 shadow-2xl">
       <form onSubmit={handleSearch} className="space-y-4">
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-            <MapPin size={16} style={{ color: BRAND.primary }} /> Where to?
+            <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
-            <input 
-              required type="text" placeholder="e.g. Key West, Miami, Cozumel..." 
-              className="w-full pl-4 pr-12 text-xl border-2 border-gray-100 rounded-lg py-4 focus:border-[#34a4b8] outline-none font-medium transition-colors" 
-              value={destinationSearch} onChange={(e) => setDestinationSearch(e.target.value)}
-            />
-            <button type="submit" className="absolute right-2 top-2 bottom-2 bg-[#34a4b8] text-white px-4 rounded-md hover:bg-[#2a8a9b] transition-colors"><Search size={24} /></button>
+            {/* DROPDOWN SELECTOR */}
+            <div className="relative w-full">
+              <select 
+                required 
+                className="w-full pl-4 pr-16 text-xl border-2 border-gray-100 rounded-lg py-4 focus:border-[#34a4b8] outline-none font-medium transition-colors appearance-none bg-white cursor-pointer"
+                value={destinationSearch} 
+                onChange={(e) => setDestinationSearch(e.target.value)}
+              >
+                <option value="" disabled>Select a Featured Destination...</option>
+                {AVAILABLE_DESTINATIONS.map(dest => (
+                  <option key={dest} value={dest}>{dest}</option>
+                ))}
+              </select>
+              <div className="absolute right-16 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
+                <ChevronDown size={20} />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={!destinationSearch}
+              className="absolute right-2 top-2 bottom-2 bg-[#34a4b8] text-white px-4 rounded-md hover:bg-[#2a8a9b] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
+              <Search size={24} />
+            </button>
           </div>
         </div>
       </form>
@@ -194,7 +248,7 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <div className="pt-6 border-t border-gray-100">
              <h3 className="text-lg font-bold text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
              <div className="grid grid-cols-2 gap-4">
-                {searchResults.products.map((p, i) => (
+                {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-12 h-12 rounded bg-gray-100 object-cover" alt={p.name} />
                     <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
@@ -298,10 +352,10 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
           <div className="print:hidden">
              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
-                {searchResults.products.map((p, i) => (
+                {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-10 h-10 rounded bg-gray-100 object-cover" alt={p.name} />
-                    <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Buy Now <ExternalLink size={10}/></div></div>
+                    <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
                   </div>
                 ))}
              </div>
@@ -367,6 +421,17 @@ export default function App() {
   const [selectedActivity, setSelectedActivity] = useState(null); 
   const [itinerary, setItinerary] = useState([]);
   const [essentials, setEssentials] = useState([]);
+
+  // Inject Fonts to Head to ensure they load
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
+    link.rel = "stylesheet";
+    document.head.appendChild(link);
+    return () => {
+      document.head.removeChild(link);
+    };
+  }, []);
 
   // Handlers
   const handleSearch = async (e) => {
