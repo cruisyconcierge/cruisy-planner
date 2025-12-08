@@ -30,19 +30,23 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
-// --- GLOBAL GEAR (Affiliate Links) ---
+// --- GLOBAL GEAR (Updated with YOUR Specific Links) ---
 const GLOBAL_GEAR = [
   { 
-    name: 'Reef-Safe Sunscreen', 
-    price: 15, 
-    image: 'https://images.unsplash.com/photo-1526947425960-94d036271d6d?auto=format&fit=crop&q=80&w=200', 
-    affiliateLink: 'https://amazon.com' 
+    name: 'Vacation Classic Sunscreen SPF 30 (3-Pack)', 
+    price: 38, 
+    // Your specific WordPress Image
+    image: 'https://cruisytravel.com/wp-content/uploads/2025/12/71WTuq9sQxL._SL1500_.jpg', 
+    // Your specific Amazon Link
+    affiliateLink: 'https://amzn.to/3KmfiQ2' 
   },
   { 
-    name: 'Waterproof Phone Pouch', 
-    price: 25, 
-    image: 'https://images.unsplash.com/photo-1585338107529-13f953b6f280?auto=format&fit=crop&q=80&w=200', 
-    affiliateLink: 'https://amazon.com' 
+    name: 'UGREEN MagFlow Power Bank 10000mAh', 
+    price: 49, 
+    // Your specific WordPress Image
+    image: 'https://cruisytravel.com/wp-content/uploads/2025/12/51Motba1XL._AC_SY741_.jpg', 
+    // Your specific Amazon Link
+    affiliateLink: 'https://amzn.to/49X8gvo' 
   },
 ];
 
@@ -143,6 +147,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
+      {/* UPDATED: Semibold font per your request */}
       <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
         The easiest way to plan your getaway. Find curated activities and book hotels, flights, rental cars, and trip essentials instantly.
       </p>
@@ -162,7 +167,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
-                {/* UPDATED: Shorter placeholder for mobile */}
                 <option value="" disabled>Destinations</option>
                 {AVAILABLE_DESTINATIONS.map(dest => (
                   <option key={dest} value={dest}>{dest}</option>
@@ -242,6 +246,7 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <div className="pt-6 border-t border-gray-100">
              <h3 className="text-lg font-bold text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
              <div className="grid grid-cols-2 gap-4">
+                {/* SAFE: USES GLOBAL GEAR */}
                 {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-12 h-12 rounded bg-gray-100 object-cover" alt={p.name} />
@@ -495,7 +500,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
+    <div className="min-h-screen bg-[#fcfcfc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
