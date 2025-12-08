@@ -30,22 +30,18 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
-// --- GLOBAL GEAR (Updated with YOUR Specific Links) ---
+// --- GLOBAL GEAR (Affiliate Links) ---
 const GLOBAL_GEAR = [
   { 
     name: 'Vacation Classic Sunscreen SPF 30 (3-Pack)', 
     price: 38, 
-    // Your specific WordPress Image
     image: 'https://cruisytravel.com/wp-content/uploads/2025/12/71WTuq9sQxL._SL1500_.jpg', 
-    // Your specific Amazon Link
     affiliateLink: 'https://amzn.to/3KmfiQ2' 
   },
   { 
     name: 'UGREEN MagFlow Power Bank 10000mAh', 
     price: 49, 
-    // Your specific WordPress Image
     image: 'https://cruisytravel.com/wp-content/uploads/2025/12/51Motba1XL._AC_SY741_.jpg', 
-    // Your specific Amazon Link
     affiliateLink: 'https://amzn.to/49X8gvo' 
   },
 ];
@@ -147,7 +143,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
-      {/* UPDATED: Semibold font per your request */}
       <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
         The easiest way to plan your getaway. Find curated activities and book hotels, flights, rental cars, and trip essentials instantly.
       </p>
@@ -159,7 +154,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
-            {/* DROPDOWN SELECTOR */}
             <div className="relative w-full">
               <select 
                 required 
@@ -246,7 +240,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <div className="pt-6 border-t border-gray-100">
              <h3 className="text-lg font-bold text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
              <div className="grid grid-cols-2 gap-4">
-                {/* SAFE: USES GLOBAL GEAR */}
                 {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-12 h-12 rounded bg-gray-100 object-cover" alt={p.name} />
@@ -414,14 +407,38 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary }) =>
 
 // --- Main App Component ---
 export default function App() {
+  // --- LEVEL 1 PERSISTENCE: LOCAL STORAGE INIT ---
+  // We check if data exists in the browser before using an empty list
   const [view, setView] = useState('search'); 
   const [destinationSearch, setDestinationSearch] = useState(''); 
   const [searchResults, setSearchResults] = useState(null); 
   const [selectedActivity, setSelectedActivity] = useState(null); 
-  const [itinerary, setItinerary] = useState([]);
-  const [essentials, setEssentials] = useState([]);
+  
+  // State 1: Itinerary (Trip Items)
+  const [itinerary, setItinerary] = useState(() => {
+    // Attempt to get saved trip from local storage
+    const saved = localStorage.getItem("cruisy_itinerary");
+    return saved ? JSON.parse(saved) : [];
+  });
 
-  // Inject Fonts to Head to ensure they load
+  // State 2: Essentials (Hotel/Flight/Car Links)
+  const [essentials, setEssentials] = useState(() => {
+    const saved = localStorage.getItem("cruisy_essentials");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // --- PERSISTENCE: AUTO-SAVE ---
+  // Whenever 'itinerary' changes, save it to the browser
+  useEffect(() => {
+    localStorage.setItem("cruisy_itinerary", JSON.stringify(itinerary));
+  }, [itinerary]);
+
+  // Whenever 'essentials' changes, save it to the browser
+  useEffect(() => {
+    localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
+  }, [essentials]);
+
+  // Inject Fonts
   useEffect(() => {
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
@@ -437,10 +454,8 @@ export default function App() {
     e.preventDefault();
     setView('loading');
     
-    // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
     
-    // BETTER ERROR HANDLING
     if (!results || results.error) {
         alert("Connection Error: Could not talk to the website. Check CORS settings.");
         setView('search');
@@ -448,20 +463,22 @@ export default function App() {
     }
 
     if (results.activities.length === 0) {
-        // Show the user exactly what we searched for to help debug
-        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
+        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}").`);
         setView('search');
         return;
     }
 
     setSearchResults(results);
     
-    setEssentials([
-      { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, icon: Plane, link: results.flightLink, cta: 'Check Prices' },
-      { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, icon: Hotel, link: results.stayPartners[0].url, cta: 'Find Hotel' },
-      { id: 'car', title: `Rental Car`, isBooked: false, icon: Car, link: results.carLink, cta: 'Search Cars' },
-      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, icon: Utensils, link: results.diningLink, cta: 'View List' }
-    ]);
+    // Only overwrite essentials if they are empty (don't delete their checked items on re-search)
+    if (essentials.length === 0) {
+      setEssentials([
+        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, icon: Plane, link: results.flightLink, cta: 'Check Prices' },
+        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, icon: Hotel, link: results.stayPartners[0].url, cta: 'Find Hotel' },
+        { id: 'car', title: `Rental Car`, isBooked: false, icon: Car, link: results.carLink, cta: 'Search Cars' },
+        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, icon: Utensils, link: results.diningLink, cta: 'View List' }
+      ]);
+    }
     
     setView('list'); 
   };
