@@ -161,6 +161,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
+            {/* DROPDOWN SELECTOR */}
             <div className="relative w-full">
               <select 
                 required 
@@ -168,7 +169,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
-                <option value="" disabled>Destinations</option>
+                <option value="" disabled>Select a Featured Destination...</option>
                 {AVAILABLE_DESTINATIONS.map(dest => (
                   <option key={dest} value={dest}>{dest}</option>
                 ))}
@@ -205,7 +206,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
     <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          {/* UPDATED: Darker gray and medium weight for clarity */}
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
         </div>
@@ -216,7 +216,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-1 space-y-6">
-          {/* UPDATED: Header color to #34a4b8 */}
           <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2"><Ticket size={18}/> Curated Experiences</h3>
           <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
             {searchResults.activities.map((activity) => {
@@ -247,11 +246,10 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
              <span className="inline-flex items-center gap-2 font-bold text-[#34a4b8] text-sm">Browse Full Catalog <ArrowRight size={14}/></span>
           </div>
           <div className="pt-6 border-t border-gray-100">
-             {/* UPDATED: Header color to #34a4b8 */}
              <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
-                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
+                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-[#ff8c00] hover:shadow-md hover:bg-orange-50 transition-all" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-12 h-12 rounded bg-gray-100 object-cover" alt={p.name} />
                     <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
                   </div>
@@ -371,7 +369,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
-                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
+                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-[#ff8c00] hover:shadow-md hover:bg-orange-50 transition-all" onClick={()=>window.open(p.affiliateLink)}>
                     <img src={p.image} className="w-10 h-10 rounded bg-gray-100 object-cover" alt={p.name} />
                     <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
                   </div>
@@ -445,33 +443,10 @@ export default function App() {
   const [destinationSearch, setDestinationSearch] = useState(''); 
   const [searchResults, setSearchResults] = useState(null); 
   const [selectedActivity, setSelectedActivity] = useState(null); 
-  
-  // State 1: Itinerary (Trip Items)
-  const [itinerary, setItinerary] = useState(() => {
-    try {
-        const saved = localStorage.getItem("cruisy_itinerary");
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
+  const [itinerary, setItinerary] = useState([]);
+  const [essentials, setEssentials] = useState([]);
 
-  // State 2: Essentials (Hotel/Flight/Car Links)
-  const [essentials, setEssentials] = useState(() => {
-    try {
-        const saved = localStorage.getItem("cruisy_essentials");
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
-
-  // --- PERSISTENCE: AUTO-SAVE ---
-  useEffect(() => {
-    localStorage.setItem("cruisy_itinerary", JSON.stringify(itinerary));
-  }, [itinerary]);
-
-  useEffect(() => {
-    localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
-  }, [essentials]);
-
-  // Inject Fonts
+  // Inject Fonts to Head to ensure they load
   useEffect(() => {
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
@@ -486,28 +461,34 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
+    
+    // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
+    
+    // BETTER ERROR HANDLING
     if (!results || results.error) {
-        alert("Connection Error: Check CORS settings.");
+        alert("Connection Error: Could not talk to the website. Check CORS settings.");
         setView('search');
         return;
     }
+
     if (results.activities.length === 0) {
-        alert(`No activities found for "${destinationSearch}".`);
+        // Show the user exactly what we searched for to help debug
+        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
         setView('search');
         return;
     }
+
     setSearchResults(results);
     
-    // Only overwrite essentials if they are empty
-    if (essentials.length === 0) {
-      setEssentials([
-        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' },
-        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' },
-        { id: 'car', title: `Rental Car`, isBooked: false, link: results.carLink, cta: 'Search Cars' },
-        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
-      ]);
-    }
+    // Initialize Essentials Checklist based on destination
+    setEssentials([
+      { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, icon: Plane, link: results.flightLink, cta: 'Check Prices' },
+      { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, icon: Hotel, link: results.stayPartners[0].url, cta: 'Find Hotel' },
+      { id: 'car', title: `Rental Car`, isBooked: false, icon: Car, link: results.carLink, cta: 'Search Cars' },
+      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, icon: Utensils, link: results.diningLink, cta: 'View List' }
+    ]);
+    
     setView('list'); 
   };
 
@@ -540,11 +521,12 @@ export default function App() {
     essentials.forEach((item) => {
       body += `- ${item.title}\n  Link: ${item.link}\n`;
     });
+    body += `\nWarmly,\nThe Cruisy Travel Team`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
+    <div className="min-h-screen bg-[#fcfcfc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
