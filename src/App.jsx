@@ -205,7 +205,8 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
     <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <button onClick={() => setView('search')} className="text-sm text-gray-500 hover:text-[#34a4b8] mb-1">← Change Destination</button>
+          {/* UPDATED: Darker gray and medium weight for clarity */}
+          <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
         </div>
         <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
@@ -215,7 +216,8 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-1 space-y-6">
-          <h3 className="text-lg font-bold text-gray-400 uppercase tracking-wide flex items-center gap-2"><Ticket size={18}/> Curated Experiences</h3>
+          {/* UPDATED: Header color to #34a4b8 */}
+          <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2"><Ticket size={18}/> Curated Experiences</h3>
           <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
             {searchResults.activities.map((activity) => {
               const isAdded = itinerary.some(i => i.id === activity.id);
@@ -245,7 +247,8 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
              <span className="inline-flex items-center gap-2 font-bold text-[#34a4b8] text-sm">Browse Full Catalog <ArrowRight size={14}/></span>
           </div>
           <div className="pt-6 border-t border-gray-100">
-             <h3 className="text-lg font-bold text-gray-400 uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
+             {/* UPDATED: Header color to #34a4b8 */}
+             <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
@@ -282,32 +285,43 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
   );
 };
 
-const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFromItinerary, handleEmailItinerary, destinationSearch }) => {
+const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFromItinerary, handleEmailItinerary, destinationSearch, searchResults }) => {
   const totalCost = itinerary.reduce((sum, item) => sum + item.price, 0);
   const bookedCount = itinerary.filter(i => i.isBooked).length + essentials.filter(i => i.isBooked).length;
   const totalItems = itinerary.length + essentials.length;
   const progress = totalItems === 0 ? 0 : (bookedCount / totalItems) * 100;
+  
+  const displayDestination = destinationSearch || "Your Trip";
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
       <div className="hidden print:block mb-8 text-center border-b border-gray-200 pb-6">
          <div className="flex justify-center mb-4"><img src={BRAND.logoUrl} alt="Cruisy Travel" className="w-24 h-24 object-cover rounded-full border-2 border-[#34a4b8]" /></div>
          <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Cruisy Travel Itinerary</h1>
-         <p className="text-gray-500 italic">Prepared for your upcoming adventure to {destinationSearch}.</p>
+         <p className="text-gray-500 italic">Prepared for your upcoming adventure to {displayDestination}.</p>
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
-      <button onClick={() => setView('list')} className="text-sm text-gray-500 hover:text-[#34a4b8] mb-6 print:hidden">← Back to Activities</button>
+      
+      {/* UPDATED: Darker gray and medium weight for clarity */}
+      <button 
+        onClick={() => searchResults ? setView('list') : setView('search')} 
+        className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
+      >
+        ← Back to {searchResults ? 'Activities' : 'Search'}
+      </button>
+
       <div className="flex flex-col md:flex-row gap-8">
         <div className="flex-1 space-y-8">
           <div className="print:hidden">
-            <h2 className="text-3xl text-gray-800 mb-2" style={{ fontFamily: BRAND.fontHeader }}>Trip Checklist: <span style={{ color: BRAND.primary }}>{destinationSearch}</span></h2>
+            <h2 className="text-3xl text-gray-800 mb-2" style={{ fontFamily: BRAND.fontHeader }}>Trip Checklist: <span style={{ color: BRAND.primary }}>{displayDestination}</span></h2>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4"><div className="bg-[#34a4b8] h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div></div>
             <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
           </div>
           <div>
-             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
+             {/* UPDATED: Header color */}
+             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
              {itinerary.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('list')} className="text-sm h-8">Browse Activities</Button></div>
+                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
              ) : (
                <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                  {itinerary.map((item) => (
@@ -331,7 +345,8 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              )}
           </div>
           <div>
-             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
+             {/* UPDATED: Header color */}
+             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                {essentials.map((item) => {
                  const IconComponent = ICON_MAP[item.id] || Info; 
@@ -352,7 +367,8 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
           </div>
           <div className="print:hidden">
-             <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
+             {/* UPDATED: Header color */}
+             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
                   <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-gray-100 hover:border-[#34a4b8]" onClick={()=>window.open(p.affiliateLink)}>
@@ -385,12 +401,20 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
   );
 };
 
-const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary }) => {
+const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, searchResults }) => {
   if (!selectedActivity) return null;
   const isAdded = itinerary.some(i => i.id === selectedActivity.id);
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
-      <button onClick={() => setView('list')} className="text-sm text-gray-500 hover:text-[#34a4b8] mb-6">← Back to List</button>
+      
+      {/* UPDATED: Darker gray and medium weight for clarity */}
+      <button 
+        onClick={() => searchResults ? setView('list') : setView('search')} 
+        className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 flex items-center gap-1"
+      >
+        ← Back to {searchResults ? 'List' : 'Search'}
+      </button>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
          <div>
            <div className="rounded-xl overflow-hidden shadow-lg mb-6"><img src={selectedActivity.image} className="w-full h-64 object-cover" alt={selectedActivity.title} /></div>
@@ -507,7 +531,7 @@ export default function App() {
 
   const handleEmailItinerary = () => {
     const subject = `Your ${destinationSearch} Adventure with Cruisy Travel`;
-    let body = `Hi there,\n\nWe are so excited for your upcoming trip to ${destinationSearch}!\n\n`;
+    let body = `Hi there,\n\nWe are so excited for your upcoming trip to ${destinationSearch}! Here is the custom itinerary plan you built with us.\n\n`;
     body += `========================================\nYOUR ACTIVITY CHECKLIST\n========================================\n\n`;
     itinerary.forEach((item, index) => {
       body += `${index + 1}. ${item.title} ($${item.price})\n   👉 Book Here: ${item.bookingUrl}\n\n`;
@@ -520,7 +544,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]" style={{ fontFamily: BRAND.fontBody }}>
+    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
@@ -547,8 +571,8 @@ export default function App() {
         {view === 'search' && <SearchView handleSearch={handleSearch} destinationSearch={destinationSearch} setDestinationSearch={setDestinationSearch} />}
         {view === 'loading' && <LoadingView destinationSearch={destinationSearch} />}
         {view === 'list' && <ActivityListView searchResults={searchResults} setView={setView} setSelectedActivity={setSelectedActivity} itinerary={itinerary} addToItinerary={addToItinerary} />}
-        {view === 'itinerary' && <ItineraryView itinerary={itinerary} setView={setView} essentials={essentials} toggleBooked={toggleBooked} removeFromItinerary={removeFromItinerary} handleEmailItinerary={handleEmailItinerary} destinationSearch={destinationSearch} />}
-        {view === 'detail' && <DetailView selectedActivity={selectedActivity} itinerary={itinerary} setView={setView} addToItinerary={addToItinerary} />}
+        {view === 'itinerary' && <ItineraryView itinerary={itinerary} setView={setView} essentials={essentials} toggleBooked={toggleBooked} removeFromItinerary={removeFromItinerary} handleEmailItinerary={handleEmailItinerary} destinationSearch={destinationSearch} searchResults={searchResults} />}
+        {view === 'detail' && <DetailView selectedActivity={selectedActivity} itinerary={itinerary} setView={setView} addToItinerary={addToItinerary} searchResults={searchResults} />}
       </main>
     </div>
   );
