@@ -29,7 +29,6 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
-// Map IDs to Icons
 const ICON_MAP = {
   flight: Plane,
   hotel: Hotel,
@@ -161,7 +160,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
-            {/* DROPDOWN SELECTOR */}
             <div className="relative w-full">
               <select 
                 required 
@@ -169,7 +167,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
-                <option value="" disabled>Select a Featured Destination...</option>
+                <option value="" disabled>Destinations</option>
                 {AVAILABLE_DESTINATIONS.map(dest => (
                   <option key={dest} value={dest}>{dest}</option>
                 ))}
@@ -300,7 +298,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
       
-      {/* UPDATED: Darker gray and medium weight for clarity */}
+      {/* Smart Back Button */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
@@ -316,7 +314,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
             <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
           </div>
           <div>
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
              {itinerary.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
@@ -343,7 +340,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              )}
           </div>
           <div>
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                {essentials.map((item) => {
@@ -365,7 +361,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
           </div>
           <div className="print:hidden">
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
@@ -405,7 +400,7 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, sear
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
       
-      {/* UPDATED: Darker gray and medium weight for clarity */}
+      {/* Smart Back Button */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 flex items-center gap-1"
@@ -439,14 +434,39 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, sear
 
 // --- Main App Component ---
 export default function App() {
+  // --- LEVEL 1 PERSISTENCE: LOCAL STORAGE INIT ---
+  // We check if data exists in the browser before using an empty list
   const [view, setView] = useState('search'); 
   const [destinationSearch, setDestinationSearch] = useState(''); 
   const [searchResults, setSearchResults] = useState(null); 
   const [selectedActivity, setSelectedActivity] = useState(null); 
-  const [itinerary, setItinerary] = useState([]);
-  const [essentials, setEssentials] = useState([]);
+  
+  // State 1: Itinerary (Trip Items)
+  const [itinerary, setItinerary] = useState(() => {
+    try {
+        const saved = localStorage.getItem("cruisy_itinerary");
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
+  });
 
-  // Inject Fonts to Head to ensure they load
+  // State 2: Essentials (Hotel/Flight/Car Links)
+  const [essentials, setEssentials] = useState(() => {
+    try {
+        const saved = localStorage.getItem("cruisy_essentials");
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
+  });
+
+  // --- PERSISTENCE: AUTO-SAVE ---
+  useEffect(() => {
+    localStorage.setItem("cruisy_itinerary", JSON.stringify(itinerary));
+  }, [itinerary]);
+
+  useEffect(() => {
+    localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
+  }, [essentials]);
+
+  // Inject Fonts
   useEffect(() => {
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
@@ -461,34 +481,29 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
-    
-    // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
     
-    // BETTER ERROR HANDLING
     if (!results || results.error) {
-        alert("Connection Error: Could not talk to the website. Check CORS settings.");
+        alert("Connection Error: Check CORS settings.");
         setView('search');
         return;
     }
-
     if (results.activities.length === 0) {
-        // Show the user exactly what we searched for to help debug
-        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
+        alert(`No activities found for "${destinationSearch}".`);
         setView('search');
         return;
     }
-
     setSearchResults(results);
     
-    // Initialize Essentials Checklist based on destination
-    setEssentials([
-      { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, icon: Plane, link: results.flightLink, cta: 'Check Prices' },
-      { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, icon: Hotel, link: results.stayPartners[0].url, cta: 'Find Hotel' },
-      { id: 'car', title: `Rental Car`, isBooked: false, icon: Car, link: results.carLink, cta: 'Search Cars' },
-      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, icon: Utensils, link: results.diningLink, cta: 'View List' }
-    ]);
-    
+    // Only overwrite essentials if they are empty
+    if (essentials.length === 0) {
+      setEssentials([
+        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' },
+        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' },
+        { id: 'car', title: `Rental Car`, isBooked: false, link: results.carLink, cta: 'Search Cars' },
+        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
+      ]);
+    }
     setView('list'); 
   };
 
@@ -526,7 +541,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#fcfcfc]" style={{ fontFamily: BRAND.fontBody }}>
+    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
