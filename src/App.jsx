@@ -16,7 +16,6 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
-// --- SUPPORTED DESTINATIONS LIST (Full Names) ---
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
   "Nassau, Bahamas",
@@ -29,6 +28,14 @@ const AVAILABLE_DESTINATIONS = [
   "Orlando, Florida",
   "Miami, Florida"
 ];
+
+// Map IDs to Icons
+const ICON_MAP = {
+  flight: Plane,
+  hotel: Hotel,
+  car: Car,
+  dining: Utensils
+};
 
 // --- GLOBAL GEAR (Affiliate Links) ---
 const GLOBAL_GEAR = [
@@ -326,19 +333,22 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
           <div>
              <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
-               {essentials.map((item) => (
-                 <div key={item.id} className={`p-4 border-b border-gray-100 flex items-center justify-between transition-colors ${item.isBooked ? 'bg-green-50/50' : 'bg-white'}`}>
-                    <div className="flex items-center gap-4">
-                      <button onClick={() => toggleBooked(item.id, 'essential')} className={`${item.isBooked ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'} print:hidden`}>{item.isBooked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
-                      <div>
-                        <div className={`font-bold ${item.isBooked ? 'text-green-700' : 'text-gray-800'}`}>{item.title}</div>
-                        <a href={item.link} target="_blank" className="text-xs text-[#34a4b8] hover:underline flex items-center gap-1 print:hidden">{item.cta} <ExternalLink size={10}/></a>
-                        <div className="hidden print:block text-xs text-gray-400 mt-1">{item.link}</div>
+               {essentials.map((item) => {
+                 const IconComponent = ICON_MAP[item.id] || Info; 
+                 return (
+                   <div key={item.id} className={`p-4 border-b border-gray-100 flex items-center justify-between transition-colors ${item.isBooked ? 'bg-green-50/50' : 'bg-white'}`}>
+                      <div className="flex items-center gap-4">
+                        <button onClick={() => toggleBooked(item.id, 'essential')} className={`${item.isBooked ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'} print:hidden`}>{item.isBooked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
+                        <div>
+                          <div className={`font-bold ${item.isBooked ? 'text-green-700' : 'text-gray-800'}`}>{item.title}</div>
+                          <a href={item.link} target="_blank" className="text-xs text-[#34a4b8] hover:underline flex items-center gap-1 print:hidden">{item.cta} <ExternalLink size={10}/></a>
+                          <div className="hidden print:block text-xs text-gray-400 mt-1">{item.link}</div>
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-gray-400"><item.icon size={20}/></div>
-                 </div>
-               ))}
+                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                   </div>
+                 )
+               })}
              </div>
           </div>
           <div className="print:hidden">
@@ -407,8 +417,6 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary }) =>
 
 // --- Main App Component ---
 export default function App() {
-  // --- LEVEL 1 PERSISTENCE: LOCAL STORAGE INIT ---
-  // We check if data exists in the browser before using an empty list
   const [view, setView] = useState('search'); 
   const [destinationSearch, setDestinationSearch] = useState(''); 
   const [searchResults, setSearchResults] = useState(null); 
@@ -416,24 +424,25 @@ export default function App() {
   
   // State 1: Itinerary (Trip Items)
   const [itinerary, setItinerary] = useState(() => {
-    // Attempt to get saved trip from local storage
-    const saved = localStorage.getItem("cruisy_itinerary");
-    return saved ? JSON.parse(saved) : [];
+    try {
+        const saved = localStorage.getItem("cruisy_itinerary");
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
   });
 
   // State 2: Essentials (Hotel/Flight/Car Links)
   const [essentials, setEssentials] = useState(() => {
-    const saved = localStorage.getItem("cruisy_essentials");
-    return saved ? JSON.parse(saved) : [];
+    try {
+        const saved = localStorage.getItem("cruisy_essentials");
+        return saved ? JSON.parse(saved) : [];
+    } catch (e) { return []; }
   });
 
   // --- PERSISTENCE: AUTO-SAVE ---
-  // Whenever 'itinerary' changes, save it to the browser
   useEffect(() => {
     localStorage.setItem("cruisy_itinerary", JSON.stringify(itinerary));
   }, [itinerary]);
 
-  // Whenever 'essentials' changes, save it to the browser
   useEffect(() => {
     localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
   }, [essentials]);
@@ -453,33 +462,28 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
-    
     const results = await fetchRealActivities(destinationSearch);
-    
     if (!results || results.error) {
-        alert("Connection Error: Could not talk to the website. Check CORS settings.");
+        alert("Connection Error: Check CORS settings.");
         setView('search');
         return;
     }
-
     if (results.activities.length === 0) {
-        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}").`);
+        alert(`No activities found for "${destinationSearch}".`);
         setView('search');
         return;
     }
-
     setSearchResults(results);
     
-    // Only overwrite essentials if they are empty (don't delete their checked items on re-search)
+    // Only overwrite essentials if they are empty
     if (essentials.length === 0) {
       setEssentials([
-        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, icon: Plane, link: results.flightLink, cta: 'Check Prices' },
-        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, icon: Hotel, link: results.stayPartners[0].url, cta: 'Find Hotel' },
-        { id: 'car', title: `Rental Car`, isBooked: false, icon: Car, link: results.carLink, cta: 'Search Cars' },
-        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, icon: Utensils, link: results.diningLink, cta: 'View List' }
+        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' },
+        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' },
+        { id: 'car', title: `Rental Car`, isBooked: false, link: results.carLink, cta: 'Search Cars' },
+        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
       ]);
     }
-    
     setView('list'); 
   };
 
@@ -503,7 +507,7 @@ export default function App() {
 
   const handleEmailItinerary = () => {
     const subject = `Your ${destinationSearch} Adventure with Cruisy Travel`;
-    let body = `Hi there,\n\nWe are so excited for your upcoming trip to ${destinationSearch}! Here is the custom itinerary plan you built with us.\n\n`;
+    let body = `Hi there,\n\nWe are so excited for your upcoming trip to ${destinationSearch}!\n\n`;
     body += `========================================\nYOUR ACTIVITY CHECKLIST\n========================================\n\n`;
     itinerary.forEach((item, index) => {
       body += `${index + 1}. ${item.title} ($${item.price})\n   👉 Book Here: ${item.bookingUrl}\n\n`;
@@ -512,7 +516,6 @@ export default function App() {
     essentials.forEach((item) => {
       body += `- ${item.title}\n  Link: ${item.link}\n`;
     });
-    body += `\nWarmly,\nThe Cruisy Travel Team`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
