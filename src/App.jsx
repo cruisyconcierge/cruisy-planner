@@ -151,7 +151,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
       <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
-        The easiest way to plan your getaway. Find curated activities and book hotels, flights, rental cars, and trip essentials instantly.
+        The easiest way to plan your getaway. Find curated <span className="text-[#34a4b8]">activities</span> and book <span className="text-[#34a4b8]">hotels</span>, <span className="text-[#34a4b8]">flights</span>, <span className="text-[#34a4b8]">rental cars</span>, and trip essentials instantly.
       </p>
     </div>
     <Card className="p-6 md:p-8 relative z-10 shadow-2xl">
@@ -165,7 +165,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <div className="relative w-full">
               <select 
                 required 
-                className="w-full pl-4 pr-16 text-xl border-2 border-gray-100 rounded-lg py-4 focus:border-[#34a4b8] outline-none font-medium transition-colors appearance-none bg-white cursor-pointer"
+                className="w-full pl-4 pr-16 text-base md:text-xl border-2 border-gray-100 rounded-lg py-4 focus:border-[#34a4b8] outline-none font-medium transition-colors appearance-none bg-white cursor-pointer"
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
@@ -182,7 +182,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <button 
               type="submit" 
               disabled={!destinationSearch}
-              className="absolute right-2 top-2 bottom-2 bg-[#34a4b8] text-white px-4 rounded-md hover:bg-[#2a8a9b] transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+              className="absolute right-2 top-2 bottom-2 bg-white text-[#34a4b8] px-4 rounded-md hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed border-l border-gray-100"
             >
               <Search size={24} />
             </button>
