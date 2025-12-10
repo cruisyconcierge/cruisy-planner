@@ -74,6 +74,10 @@ const fetchRealActivities = async (destinationSelection) => {
       const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url 
         || 'https://via.placeholder.com/600x400?text=No+Image';
 
+      // Ensure bookingUrl is null if empty/hash so we can disable button
+      let bookUrl = post.acf.booking_url;
+      if (!bookUrl || bookUrl === "#") bookUrl = null;
+
       return {
         id: post.id,
         title: post.title.rendered,
@@ -83,7 +87,7 @@ const fetchRealActivities = async (destinationSelection) => {
         category: post.acf.category || "Activity",
         excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
         description: post.content.rendered, 
-        bookingUrl: post.acf.booking_url || "#",
+        bookingUrl: bookUrl,
         tags: [] 
       };
     });
@@ -331,7 +335,17 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                         </div>
                       </div>
                       <div className="flex items-center gap-2 print:hidden">
-                         {!item.isBooked && (<Button variant="action" className="text-xs px-3 h-8" onClick={() => window.open(item.bookingUrl, '_blank')}>Book Now</Button>)}
+                         {!item.isBooked && (
+                           // SAFE CHECK: DISABLE IF URL IS MISSING OR HASH
+                           <Button 
+                             variant="action" 
+                             className="text-xs px-3 h-8" 
+                             disabled={!item.bookingUrl || item.bookingUrl === '#'}
+                             onClick={() => item.bookingUrl && window.open(item.bookingUrl, '_blank')}
+                           >
+                             {(!item.bookingUrl || item.bookingUrl === '#') ? 'Coming Soon' : 'Book Now'}
+                           </Button>
+                         )}
                          <button onClick={() => removeFromItinerary(item.id)} className="text-gray-400 hover:text-red-400 p-2"><Trash2 size={16}/></button>
                       </div>
                    </div>
@@ -397,10 +411,14 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
 const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, searchResults }) => {
   if (!selectedActivity) return null;
   const isAdded = itinerary.some(i => i.id === selectedActivity.id);
+  
+  // Safe logic to check if bookable
+  const isBookable = selectedActivity.bookingUrl && selectedActivity.bookingUrl !== "#";
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
       
-      {/* Smart Back Button */}
+      {/* UPDATED: Darker gray and medium weight for clarity */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 flex items-center gap-1"
@@ -422,7 +440,17 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, sear
                </div>
                <div className="space-y-3">
                  <Button fullWidth variant={isAdded ? "ghost" : "primary"} onClick={() => isAdded ? setView('itinerary') : addToItinerary(selectedActivity)} className={isAdded ? "bg-green-50 text-green-600 border border-green-200" : ""}>{isAdded ? "View in Trip" : "Add to Trip"}</Button>
-                 <Button fullWidth variant="action" onClick={() => window.open(selectedActivity.bookingUrl, '_blank')}>Book Now (FareHarbor) <ExternalLink size={16}/></Button>
+                 
+                 {/* SAFE BUTTON LOGIC */}
+                 <Button 
+                   fullWidth 
+                   variant="action" 
+                   disabled={!isBookable}
+                   onClick={() => isBookable && window.open(selectedActivity.bookingUrl, '_blank')}
+                 >
+                    {isBookable ? "Book Now (FareHarbor)" : "Coming Soon"} <ExternalLink size={16}/>
+                 </Button>
+
                  <div className="text-xs text-center text-gray-400 mt-2 px-2"><span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span> We may earn a small commission if you book through our links, at no extra cost to you.</div>
                </div>
             </Card>
@@ -482,7 +510,6 @@ export default function App() {
     e.preventDefault();
     setView('loading');
     const results = await fetchRealActivities(destinationSearch);
-    
     if (!results || results.error) {
         alert("Connection Error: Check CORS settings.");
         setView('search');
