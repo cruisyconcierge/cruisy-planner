@@ -148,8 +148,8 @@ const Card = ({ children, className = '' }) => (
 // --- 4. SUB-VIEWS ---
 
 const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
-  <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
-    <div className="text-center mb-10">
+  <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in print:hidden">
+    <div className="text-center mb-8">
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
@@ -302,7 +302,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
       
-      {/* Smart Back Button */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
@@ -336,7 +335,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                       </div>
                       <div className="flex items-center gap-2 print:hidden">
                          {!item.isBooked && (
-                           // SAFE CHECK: DISABLE IF URL IS MISSING OR HASH
                            <Button 
                              variant="action" 
                              className="text-xs px-3 h-8" 
@@ -493,6 +491,31 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
   }, [essentials]);
+  
+  // --- AUTO RESIZE: Send Height to WordPress Parent ---
+  useEffect(() => {
+    const sendHeight = () => {
+      // Calculate body height (plus a little padding if needed)
+      const height = document.body.scrollHeight;
+      // Post message to parent window (WordPress)
+      window.parent.postMessage({ type: 'CRUISY_RESIZE', height }, '*');
+    };
+
+    // Trigger on load, view change, search result change
+    sendHeight();
+    
+    // Add listener for window resize
+    window.addEventListener('resize', sendHeight);
+    
+    // Use ResizeObserver to watch for DOM changes (like images loading)
+    const observer = new ResizeObserver(sendHeight);
+    observer.observe(document.body);
+
+    return () => {
+      window.removeEventListener('resize', sendHeight);
+      observer.disconnect();
+    };
+  }, [view, searchResults, itinerary]); // Re-run when view changes
 
   // Inject Fonts
   useEffect(() => {
@@ -509,7 +532,9 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
+    
     const results = await fetchRealActivities(destinationSearch);
+    
     if (!results || results.error) {
         alert("Connection Error: Check CORS settings.");
         setView('search');
@@ -563,7 +588,6 @@ export default function App() {
     essentials.forEach((item) => {
       body += `- ${item.title}\n  Link: ${item.link}\n`;
     });
-    body += `\nWarmly,\nThe Cruisy Travel Team`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
