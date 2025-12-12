@@ -121,7 +121,8 @@ const fetchRealActivities = async (destinationSelection) => {
 
     // 6. DYNAMIC PARTNER LOGIC (Cars)
     const potentialCars = [
-      { name: "Carl Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
+      // Name corrected to Carla, key kept as 'carl_rental_link'
+      { name: "Carla Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
       { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
     ];
 
@@ -185,6 +186,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
+            {/* DROPDOWN SELECTOR */}
             <div className="relative w-full">
               <select 
                 required 
@@ -387,6 +389,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
       
+      {/* UPDATED: Darker gray and medium weight for clarity */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
@@ -402,6 +405,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
             <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
           </div>
           <div>
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
              {itinerary.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
@@ -420,6 +424,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                       </div>
                       <div className="flex items-center gap-2 print:hidden">
                          {!item.isBooked && (
+                           // SAFE CHECK: DISABLE IF URL IS MISSING OR HASH
                            <Button 
                              variant="action" 
                              className="text-xs px-3 h-8" 
@@ -437,6 +442,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              )}
           </div>
           <div>
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                {essentials.map((item) => {
@@ -458,6 +464,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
           </div>
           <div className="print:hidden">
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
@@ -605,96 +612,50 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
+    
+    // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
+    
+    // BETTER ERROR HANDLING
     if (!results || results.error) {
-        alert("Connection Error: Check CORS settings.");
+        alert("Connection Error: Could not talk to the website. Check CORS settings.");
         setView('search');
         return;
     }
+
     if (results.activities.length === 0) {
-        alert(`No activities found for "${destinationSearch}".`);
+        // Show the user exactly what we searched for to help debug
+        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
         setView('search');
         return;
     }
+
     setSearchResults(results);
     
-    // Only overwrite essentials if they are empty
-    if (essentials.length === 0) {
-      setEssentials([
-        // This will be populated dynamically if needed, but for now we let user add essentials manually? 
-        // Actually, previous logic auto-added essentials.
-        // Let's stick to the previous pattern of auto-populating essentials based on search results for now.
-        // We can make this smarter later if needed.
-        // Wait, essentials are usually populated on search.
-        // Let's ensure we populate essentials from the search results if they aren't already there for THIS destination.
-        // Or just overwrite? Overwriting might clear user progress.
-        // Let's keep it simple: Reset essentials on new search to match destination.
-      ]);
-       
-       // Re-populate essentials based on new search
-       const newEssentials = [];
-       
-       // Add Flight if available
-       if (results.flightPartners && results.flightPartners.length > 0) {
-           newEssentials.push({ 
-               id: 'flight', 
-               title: `Flights to ${results.destinationName}`, 
-               isBooked: false, 
-               link: results.flightPartners[0].url, 
-               cta: 'Check Prices' 
-           });
-       } else if (results.flightLink) {
-            newEssentials.push({ 
-               id: 'flight', 
-               title: `Flights to ${results.destinationName}`, 
-               isBooked: false, 
-               link: results.flightLink, 
-               cta: 'Check Prices' 
-           });
-       }
+    // Initialize Essentials Checklist based on destination
+    setEssentials([
+      // Only populate if we have search results.
+      // We will loop through the available partners and add them to essentials.
+      
+      // Flight
+      ...(results.flightPartners && results.flightPartners.length > 0 
+          ? [{ id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightPartners[0].url, cta: 'Check Prices' }] 
+          : []),
 
-       // Add Hotel if available
-       if (results.stayPartners && results.stayPartners.length > 0) {
-           newEssentials.push({ 
-               id: 'hotel', 
-               title: `Stay in ${results.destinationName}`, 
-               isBooked: false, 
-               link: results.stayPartners[0].url, 
-               cta: 'Find Hotel' 
-           });
-       }
+      // Hotel (First available)
+      ...(results.stayPartners && results.stayPartners.length > 0 
+          ? [{ id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' }] 
+          : []),
 
-       // Add Car if available
-       if (results.carPartners && results.carPartners.length > 0) {
-           newEssentials.push({ 
-               id: 'car', 
-               title: `Rental Car in ${results.destinationName}`, 
-               isBooked: false, 
-               link: results.carPartners[0].url, 
-               cta: 'Search Cars' 
-           });
-       }
+      // Car (First available)
+      ...(results.carPartners && results.carPartners.length > 0 
+          ? [{ id: 'car', title: `Rental Car`, isBooked: false, link: results.carPartners[0].url, cta: 'Search Cars' }] 
+          : []),
 
-       // Add Dining
-       newEssentials.push({ 
-           id: 'dining', 
-           title: `Dining Guide: Best of ${results.destinationName}`, 
-           isBooked: false, 
-           link: results.diningLink, 
-           cta: 'View List' 
-       });
-       
-       // Add Insurance Always
-       newEssentials.push({
-           id: 'insurance',
-           title: 'Travel Insurance (World Nomads)',
-           isBooked: false,
-           link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F',
-           cta: 'Get Quote'
-       });
-
-       setEssentials(newEssentials);
-    }
+      // Dining (Always add if link exists, otherwise maybe generic search?)
+      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
+    ]);
+    
     setView('list'); 
   };
 
