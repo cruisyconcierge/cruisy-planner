@@ -3,7 +3,7 @@ import {
   MapPin, Calendar, DollarSign, Plane, Hotel, 
   Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown
+  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
@@ -29,11 +29,13 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
+// Map IDs to Icons for Checklist
 const ICON_MAP = {
   flight: Plane,
   hotel: Hotel,
   car: Car,
-  dining: Utensils
+  dining: Utensils,
+  insurance: ShieldCheck
 };
 
 // --- GLOBAL GEAR (Affiliate Links) ---
@@ -74,46 +76,65 @@ const fetchRealActivities = async (destinationSelection) => {
       const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url 
         || 'https://via.placeholder.com/600x400?text=No+Image';
 
-      // Ensure bookingUrl is null if empty/hash so we can disable button
-      let bookUrl = post.acf.booking_url;
+      let bookUrl = post.acf?.booking_url;
       if (!bookUrl || bookUrl === "#") bookUrl = null;
 
       return {
         id: post.id,
         title: post.title.rendered,
         image: img,
-        price: Number(post.acf.price) || 0,
-        duration: post.acf.duration || "Varies",
-        category: post.acf.category || "Activity",
-        excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
-        description: post.content.rendered, 
+        price: Number(post.acf?.price) || 0,
+        duration: post.acf?.duration || "Varies",
+        category: post.acf?.category || "Activity",
+        excerpt: post.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '', 
+        description: post.content?.rendered || '', 
         bookingUrl: bookUrl,
         tags: [] 
       };
     });
 
-    // 4. Construct Dynamic Links
-    const stayPartners = [
-      { 
-        name: "Vrbo", 
-        icon: Home, 
-        color: "bg-blue-800",
-        url: acf.hotel_affiliate_link || `https://www.vrbo.com/search/keywords:${encodeURIComponent(searchTerm)}`
-      },
-      { 
-        name: "Booking.com", 
-        icon: Hotel, 
-        color: "bg-blue-600",
-        url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
-      },
+    // 4. DYNAMIC PARTNER LOGIC (Hotels)
+    const potentialStays = [
+      { name: "Booking.com", key: "booking_link", icon: Hotel, color: "#003580" },
+      { name: "Vrbo", key: "vrbo_link", icon: Home, color: "#1e3a8a" },
+      { name: "Hotels.com", key: "hotels_link", icon: Hotel, color: "#d32f2f" },
+      { name: "Expedia", key: "expedia_link", icon: Plane, color: "#FFD700", textColor: "#000" },
+      { name: "Orbitz", key: "orbitz_link", icon: Globe, color: "#005e83" },
+      { name: "Travelocity", key: "travelocity_link", icon: Star, color: "#003a70" },
+      { name: "Trivago", key: "trivago_link", icon: Search, color: "#f48f00" }
     ];
+
+    const stayPartners = potentialStays
+      .filter(p => acf[p.key]) 
+      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
+
+    // 5. DYNAMIC PARTNER LOGIC (Flights)
+    const potentialFlights = [
+      { name: "Kiwi.com", key: "kiwi_flight_link", icon: Plane, color: "#00a991" },
+      { name: "Booking.com Flights", key: "booking_flight_link", icon: Plane, color: "#003580" },
+      { name: "Expedia Flights", key: "expedia_flight_link", icon: Plane, color: "#FFD700", textColor: "#000" }
+    ];
+
+    const flightPartners = potentialFlights
+      .filter(p => acf[p.key])
+      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
+
+    // 6. DYNAMIC PARTNER LOGIC (Cars)
+    const potentialCars = [
+      { name: "Carl Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
+      { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
+    ];
+
+    const carPartners = potentialCars
+      .filter(p => acf[p.key])
+      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
 
     return {
       destinationName: hub.title?.rendered || searchTerm, 
       destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${searchTerm}`,
-      stayPartners: stayPartners,
-      flightLink: acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`,
-      carLink: acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`,
+      stayPartners,
+      flightPartners,
+      carPartners,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
       weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
@@ -148,8 +169,8 @@ const Card = ({ children, className = '' }) => (
 // --- 4. SUB-VIEWS ---
 
 const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
-  <div className="max-w-3xl mx-auto px-4 py-8 animate-fade-in print:hidden">
-    <div className="text-center mb-8">
+  <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
+    <div className="text-center mb-10">
       <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
         Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
       </h1>
@@ -219,8 +240,13 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-1 space-y-6">
           <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2"><Ticket size={18}/> Curated Experiences</h3>
+          
           <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {searchResults.activities.map((activity) => {
+            {searchResults.activities.length === 0 ? (
+               <div className="col-span-2 text-center py-10 bg-gray-50 rounded-xl border border-gray-200">
+                 <p className="text-gray-500">No activities loaded for this location yet.</p>
+               </div>
+            ) : searchResults.activities.map((activity) => {
               const isAdded = itinerary.some(i => i.id === activity.id);
               return (
                  <Card key={activity.id} className="flex flex-col hover:shadow-xl transition-all group h-full">
@@ -243,6 +269,7 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
               );
             })}
           </div>
+
           <div onClick={() => window.open(searchResults.destinationPageUrl, '_blank')} className="bg-[#34a4b8]/5 border-2 border-dashed border-[#34a4b8]/30 rounded-xl p-6 text-center cursor-pointer hover:bg-[#34a4b8]/10 transition-colors group">
              <h3 className="text-lg font-bold text-gray-800 mb-1">See More {searchResults.destinationName} Activities</h3>
              <span className="inline-flex items-center gap-2 font-bold text-[#34a4b8] text-sm">Browse Full Catalog <ArrowRight size={14}/></span>
@@ -259,26 +286,84 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
              </div>
           </div>
         </div>
+
+        {/* --- DYNAMIC SIDEBAR --- */}
         <div className="lg:w-80 space-y-6">
-          <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-             <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
-             <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
-             <div className="space-y-2">
-               {searchResults.stayPartners.map((partner, idx) => (
-                 <Button key={idx} fullWidth onClick={() => window.open(partner.url, '_blank')} className={`${partner.color} text-white shadow-sm border-none justify-between`}>
-                   <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                 </Button>
-               ))}
-             </div>
+          
+          {/* HOTELS CARD */}
+          {searchResults.stayPartners.length > 0 && (
+            <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+               <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
+               <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
+               <div className="space-y-2">
+                 {searchResults.stayPartners.map((partner, idx) => (
+                   <Button 
+                     key={idx} 
+                     fullWidth 
+                     onClick={() => window.open(partner.url, '_blank')} 
+                     style={{ backgroundColor: partner.color, color: partner.textColor }}
+                     className="shadow-sm border-none justify-between"
+                   >
+                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
+                   </Button>
+                 ))}
+               </div>
+            </Card>
+          )}
+
+          {/* FLIGHTS CARD */}
+          {searchResults.flightPartners.length > 0 && (
+            <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
+               <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
+               <div className="space-y-2">
+                 {searchResults.flightPartners.map((partner, idx) => (
+                   <Button 
+                     key={idx} 
+                     fullWidth 
+                     onClick={() => window.open(partner.url, '_blank')} 
+                     style={{ backgroundColor: partner.color, color: partner.textColor }}
+                     className="shadow-sm border-none justify-between"
+                   >
+                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
+                   </Button>
+                 ))}
+               </div>
+            </Card>
+          )}
+
+          {/* CARS CARD */}
+          {searchResults.carPartners.length > 0 && (
+            <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
+               <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
+               <div className="space-y-2">
+                 {searchResults.carPartners.map((partner, idx) => (
+                   <Button 
+                     key={idx} 
+                     fullWidth 
+                     onClick={() => window.open(partner.url, '_blank')} 
+                     style={{ backgroundColor: partner.color, color: partner.textColor }}
+                     className="shadow-sm border-none justify-between"
+                   >
+                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
+                   </Button>
+                 ))}
+               </div>
+            </Card>
+          )}
+
+          {/* TRAVEL INSURANCE (Always Visible) */}
+          <Card className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-200">
+             <div className="flex items-center gap-2 mb-3 text-slate-900 font-bold"><ShieldCheck size={20}/> Travel Insurance</div>
+             <p className="text-sm text-slate-600 mb-4">Don't forget to protect your trip. Recommended for all international travel.</p>
+             <Button 
+               fullWidth 
+               onClick={() => window.open('https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', '_blank')} 
+               className="bg-[#D4002D] hover:bg-[#b00025] text-white shadow-none justify-between"
+             >
+               <span className="flex items-center gap-2">World Nomads</span><ExternalLink size={14} className="opacity-70"/>
+             </Button>
           </Card>
-          <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
-             <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
-             <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
-          </Card>
-          <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
-             <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
-             <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
-          </Card>
+
         </div>
       </div>
     </div>
@@ -461,7 +546,6 @@ const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, sear
 // --- Main App Component ---
 export default function App() {
   // --- LEVEL 1 PERSISTENCE: LOCAL STORAGE INIT ---
-  // We check if data exists in the browser before using an empty list
   const [view, setView] = useState('search'); 
   const [destinationSearch, setDestinationSearch] = useState(''); 
   const [searchResults, setSearchResults] = useState(null); 
@@ -492,32 +576,21 @@ export default function App() {
     localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
   }, [essentials]);
   
-  // --- AUTO RESIZE: Send Height to WordPress Parent ---
   useEffect(() => {
     const sendHeight = () => {
-      // Calculate body height (plus a little padding if needed)
       const height = document.body.scrollHeight;
-      // Post message to parent window (WordPress)
       window.parent.postMessage({ type: 'CRUISY_RESIZE', height }, '*');
     };
-
-    // Trigger on load, view change, search result change
     sendHeight();
-    
-    // Add listener for window resize
     window.addEventListener('resize', sendHeight);
-    
-    // Use ResizeObserver to watch for DOM changes (like images loading)
     const observer = new ResizeObserver(sendHeight);
     observer.observe(document.body);
-
     return () => {
       window.removeEventListener('resize', sendHeight);
       observer.disconnect();
     };
-  }, [view, searchResults, itinerary]); // Re-run when view changes
+  }, [view, searchResults, itinerary]); 
 
-  // Inject Fonts
   useEffect(() => {
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
@@ -532,9 +605,7 @@ export default function App() {
   const handleSearch = async (e) => {
     e.preventDefault();
     setView('loading');
-    
     const results = await fetchRealActivities(destinationSearch);
-    
     if (!results || results.error) {
         alert("Connection Error: Check CORS settings.");
         setView('search');
@@ -550,11 +621,79 @@ export default function App() {
     // Only overwrite essentials if they are empty
     if (essentials.length === 0) {
       setEssentials([
-        { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' },
-        { id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' },
-        { id: 'car', title: `Rental Car`, isBooked: false, link: results.carLink, cta: 'Search Cars' },
-        { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
+        // This will be populated dynamically if needed, but for now we let user add essentials manually? 
+        // Actually, previous logic auto-added essentials.
+        // Let's stick to the previous pattern of auto-populating essentials based on search results for now.
+        // We can make this smarter later if needed.
+        // Wait, essentials are usually populated on search.
+        // Let's ensure we populate essentials from the search results if they aren't already there for THIS destination.
+        // Or just overwrite? Overwriting might clear user progress.
+        // Let's keep it simple: Reset essentials on new search to match destination.
       ]);
+       
+       // Re-populate essentials based on new search
+       const newEssentials = [];
+       
+       // Add Flight if available
+       if (results.flightPartners && results.flightPartners.length > 0) {
+           newEssentials.push({ 
+               id: 'flight', 
+               title: `Flights to ${results.destinationName}`, 
+               isBooked: false, 
+               link: results.flightPartners[0].url, 
+               cta: 'Check Prices' 
+           });
+       } else if (results.flightLink) {
+            newEssentials.push({ 
+               id: 'flight', 
+               title: `Flights to ${results.destinationName}`, 
+               isBooked: false, 
+               link: results.flightLink, 
+               cta: 'Check Prices' 
+           });
+       }
+
+       // Add Hotel if available
+       if (results.stayPartners && results.stayPartners.length > 0) {
+           newEssentials.push({ 
+               id: 'hotel', 
+               title: `Stay in ${results.destinationName}`, 
+               isBooked: false, 
+               link: results.stayPartners[0].url, 
+               cta: 'Find Hotel' 
+           });
+       }
+
+       // Add Car if available
+       if (results.carPartners && results.carPartners.length > 0) {
+           newEssentials.push({ 
+               id: 'car', 
+               title: `Rental Car in ${results.destinationName}`, 
+               isBooked: false, 
+               link: results.carPartners[0].url, 
+               cta: 'Search Cars' 
+           });
+       }
+
+       // Add Dining
+       newEssentials.push({ 
+           id: 'dining', 
+           title: `Dining Guide: Best of ${results.destinationName}`, 
+           isBooked: false, 
+           link: results.diningLink, 
+           cta: 'View List' 
+       });
+       
+       // Add Insurance Always
+       newEssentials.push({
+           id: 'insurance',
+           title: 'Travel Insurance (World Nomads)',
+           isBooked: false,
+           link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F',
+           cta: 'Get Quote'
+       });
+
+       setEssentials(newEssentials);
     }
     setView('list'); 
   };
@@ -588,6 +727,7 @@ export default function App() {
     essentials.forEach((item) => {
       body += `- ${item.title}\n  Link: ${item.link}\n`;
     });
+    body += `\nWarmly,\nThe Cruisy Travel Team`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
 
