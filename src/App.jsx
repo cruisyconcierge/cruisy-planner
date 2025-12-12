@@ -29,7 +29,6 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
-// Map IDs to Icons for Checklist
 const ICON_MAP = {
   flight: Plane,
   hotel: Hotel,
@@ -76,6 +75,7 @@ const fetchRealActivities = async (destinationSelection) => {
       const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url 
         || 'https://via.placeholder.com/600x400?text=No+Image';
 
+      // Ensure bookingUrl is null if empty/hash so we can disable button
       let bookUrl = post.acf?.booking_url;
       if (!bookUrl || bookUrl === "#") bookUrl = null;
 
@@ -121,7 +121,6 @@ const fetchRealActivities = async (destinationSelection) => {
 
     // 6. DYNAMIC PARTNER LOGIC (Cars)
     const potentialCars = [
-      // Name corrected to Carla, key kept as 'carl_rental_link'
       { name: "Carla Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
       { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
     ];
@@ -583,21 +582,10 @@ export default function App() {
     localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
   }, [essentials]);
   
-  useEffect(() => {
-    const sendHeight = () => {
-      const height = document.body.scrollHeight;
-      window.parent.postMessage({ type: 'CRUISY_RESIZE', height }, '*');
-    };
-    sendHeight();
-    window.addEventListener('resize', sendHeight);
-    const observer = new ResizeObserver(sendHeight);
-    observer.observe(document.body);
-    return () => {
-      window.removeEventListener('resize', sendHeight);
-      observer.disconnect();
-    };
-  }, [view, searchResults, itinerary]); 
+  // --- REMOVED AUTO RESIZE LOGIC TO FIX OVERLAY/SCROLLING ISSUES ---
+  // The iframe will now handle scrolling internally within the fixed height container.
 
+  // Inject Fonts
   useEffect(() => {
     const link = document.createElement('link');
     link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
@@ -634,26 +622,33 @@ export default function App() {
     
     // Initialize Essentials Checklist based on destination
     setEssentials([
-      // Only populate if we have search results.
-      // We will loop through the available partners and add them to essentials.
-      
-      // Flight
-      ...(results.flightPartners && results.flightPartners.length > 0 
-          ? [{ id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightPartners[0].url, cta: 'Check Prices' }] 
-          : []),
+      // Flights (Loop through all flight partners)
+      ...(results.flightPartners.length > 0 
+          ? results.flightPartners.map(p => ({
+              id: 'flight', 
+              title: `Flight via ${p.name}`, 
+              isBooked: false, 
+              link: p.url, 
+              cta: 'Check Prices'
+            }))
+          : (results.flightLink ? [{ id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' }] : [])),
 
-      // Hotel (First available)
-      ...(results.stayPartners && results.stayPartners.length > 0 
+      // Hotels (First available for checklist simplicity, or map all?)
+      // Mapping all might be too much for a checklist, let's grab the first one as "Accommodation"
+      ...(results.stayPartners.length > 0 
           ? [{ id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' }] 
           : []),
 
-      // Car (First available)
-      ...(results.carPartners && results.carPartners.length > 0 
+      // Cars (First available)
+      ...(results.carPartners.length > 0 
           ? [{ id: 'car', title: `Rental Car`, isBooked: false, link: results.carPartners[0].url, cta: 'Search Cars' }] 
           : []),
+      
+      // Dining
+      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' },
 
-      // Dining (Always add if link exists, otherwise maybe generic search?)
-      { id: 'dining', title: `Dining Guide: Best of ${results.destinationName}`, isBooked: false, link: results.diningLink, cta: 'View List' }
+      // Insurance
+      { id: 'insurance', title: 'Travel Insurance (World Nomads)', isBooked: false, link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', cta: 'Get Quote' }
     ]);
     
     setView('list'); 
