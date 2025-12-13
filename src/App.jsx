@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MapPin, Calendar, DollarSign, Plane, Hotel, 
-  Sun, Star, Save, User, ArrowRight, Check, Loader2, 
+  Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck, Cloud, CloudRain, Snowflake
+  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
@@ -16,7 +16,6 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
-// --- SUPPORTED DESTINATIONS LIST (Full Names) ---
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
   "Nassau, Bahamas",
@@ -55,42 +54,7 @@ const GLOBAL_GEAR = [
   },
 ];
 
-// --- 2. WEATHER LOGIC (No API Key Needed) ---
-const getEstimatedWeather = (destination) => {
-  const month = new Date().getMonth(); // 0 = Jan, 11 = Dec
-  const dest = destination.toLowerCase();
-  
-  // Seasons
-  const isSummer = month >= 5 && month <= 8; // Jun-Sep
-  const isWinter = month === 11 || month <= 2; // Dec-Mar
-  
-  let temp = 82;
-  let condition = "Sunny";
-  let Icon = Sun;
-
-  if (dest.includes('sydney') || dest.includes('australia')) {
-    // Southern Hemisphere (Seasons flipped)
-    if (isSummer) { temp = 62; condition = "Cool & Breezy"; Icon = Cloud; } // Their Winter
-    else if (isWinter) { temp = 79; condition = "Sunny"; Icon = Sun; } // Their Summer
-    else { temp = 72; condition = "Pleasant"; Icon = Sun; }
-  } 
-  else if (dest.includes('barcelona') || dest.includes('crete') || dest.includes('greece') || dest.includes('spain')) {
-    // Mediterranean
-    if (isSummer) { temp = 85; condition = "Hot & Sunny"; Icon = Sun; }
-    else if (isWinter) { temp = 58; condition = "Partly Cloudy"; Icon = Cloud; }
-    else { temp = 68; condition = "Mild & Sunny"; Icon = Sun; }
-  } 
-  else {
-    // Tropical / Florida / Caribbean / Hawaii (Default)
-    if (isSummer) { temp = 89; condition = "Hot & Humid"; Icon = Sun; }
-    else if (isWinter) { temp = 76; condition = "Perfect Sun"; Icon = Sun; }
-    else { temp = 82; condition = "Sunny"; Icon = Sun; }
-  }
-
-  return { temp, condition, icon: Icon };
-};
-
-// --- 3. API LOGIC ---
+// --- 2. API LOGIC ---
 
 const fetchRealActivities = async (destinationSelection) => {
   try {
@@ -122,8 +86,8 @@ const fetchRealActivities = async (destinationSelection) => {
         price: Number(post.acf?.price) || 0,
         duration: post.acf?.duration || "Varies",
         category: post.acf?.category || "Activity",
-        excerpt: post.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '', 
-        description: post.content?.rendered || '', 
+        excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
+        description: post.content.rendered, 
         bookingUrl: bookUrl,
         tags: [] 
       };
@@ -140,20 +104,9 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Trivago", key: "trivago_link", icon: Search, color: "#f48f00" }
     ];
 
-    let stayPartners = potentialStays
+    const stayPartners = potentialStays
       .filter(p => acf[p.key]) 
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-      
-    // Fallback if no hotel links provided
-    if (stayPartners.length === 0) {
-       stayPartners = [{
-          name: "Find Hotels",
-          icon: Hotel,
-          color: "#003580",
-          textColor: "white",
-          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
-       }];
-    }
 
     // 5. DYNAMIC PARTNER LOGIC (Flights)
     const potentialFlights = [
@@ -162,12 +115,9 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Expedia Flights", key: "expedia_flight_link", icon: Plane, color: "#FFD700", textColor: "#000" }
     ];
 
-    let flightPartners = potentialFlights
+    const flightPartners = potentialFlights
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-    
-    // Fallback Flight Link
-    let genericFlightLink = acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`;
 
     // 6. DYNAMIC PARTNER LOGIC (Cars)
     const potentialCars = [
@@ -175,26 +125,18 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
     ];
 
-    let carPartners = potentialCars
+    const carPartners = potentialCars
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-
-    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`;
-
-    // 7. REALISTIC WEATHER ESTIMATE
-    const weatherData = getEstimatedWeather(searchTerm);
 
     return {
       destinationName: hub.title?.rendered || searchTerm, 
       destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${searchTerm}`,
       stayPartners,
       flightPartners,
-      genericFlightLink,
       carPartners,
-      genericCarLink,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
-      weather: weatherData, 
     };
 
   } catch (error) {
@@ -203,7 +145,7 @@ const fetchRealActivities = async (destinationSelection) => {
   }
 };
 
-// --- 4. UI COMPONENTS ---
+// --- 3. UI COMPONENTS ---
 
 const Button = ({ children, onClick, variant = 'primary', className = '', type='button', disabled = false, fullWidth = false, style={} }) => {
   const baseStyle = `px-6 py-3 rounded-lg font-bold transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 ${fullWidth ? 'w-full' : ''} print:hidden`;
@@ -223,7 +165,7 @@ const Card = ({ children, className = '' }) => (
   <div className={`bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden ${className} print:shadow-none print:border-none`}>{children}</div>
 );
 
-// --- 5. SUB-VIEWS ---
+// --- 4. SUB-VIEWS ---
 
 const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
   <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
@@ -250,7 +192,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
                 value={destinationSearch} 
                 onChange={(e) => setDestinationSearch(e.target.value)}
               >
-                <option value="" disabled>Select a Featured Destination...</option>
+                <option value="" disabled>Destinations</option>
                 {AVAILABLE_DESTINATIONS.map(dest => (
                   <option key={dest} value={dest}>{dest}</option>
                 ))}
@@ -272,6 +214,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       </form>
     </Card>
 
+    {/* NEW SECTION: "How it works" to fill the vertical space */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-center opacity-80">
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -314,10 +257,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
         <div>
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-        </div>
-        <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
-           <searchResults.weather.icon className="text-yellow-500" size={20}/>
-           <div><div className="text-xs text-gray-400 font-bold uppercase">Forecast</div><div className="font-bold text-gray-700">{searchResults.weather.temp}°F {searchResults.weather.condition}</div></div>
         </div>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
@@ -368,82 +307,26 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           </div>
         </div>
         <div className="lg:w-80 space-y-6">
-          {/* HOTELS CARD */}
-          {searchResults.stayPartners.length > 0 ? (
-            <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-               <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
-               <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
-               <div className="space-y-2">
-                 {searchResults.stayPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))}
-               </div>
-            </Card>
-          ) : (
-            // Fallback generic Hotel button
-            <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-              <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
-              <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals.</p>
-              <Button fullWidth onClick={() => window.open(`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchResults.destinationName)}`, '_blank')} className="bg-blue-600 hover:bg-blue-700 text-white shadow-none justify-between">
-                <span className="flex items-center gap-2"><Hotel size={16}/> Find Hotels</span><ExternalLink size={14} className="opacity-70"/>
-              </Button>
-            </Card>
-          )}
-
-          {/* FLIGHTS CARD */}
+          <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+             <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
+             <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
+             <div className="space-y-2">
+               {searchResults.stayPartners.map((partner, idx) => (
+                 <Button key={idx} fullWidth onClick={() => window.open(partner.url, '_blank')} className={`${partner.color} text-white shadow-sm border-none justify-between`}>
+                   <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
+                 </Button>
+               ))}
+             </div>
+          </Card>
           <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
              <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
-             <div className="space-y-2">
-               {/* Check for specific partners, otherwise use generic link */}
-               {searchResults.flightPartners && searchResults.flightPartners.length > 0 ? (
-                 searchResults.flightPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
-               )}
-             </div>
+             <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
           </Card>
-
-          {/* CARS CARD */}
           <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
              <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
-             <div className="space-y-2">
-                {/* Check for specific partners, otherwise use generic link */}
-                {searchResults.carPartners && searchResults.carPartners.length > 0 ? (
-                 searchResults.carPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
-               )}
-             </div>
+             <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
           </Card>
-
+          
           {/* TRAVEL INSURANCE (Always Visible) */}
           <Card className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-200">
              <div className="flex items-center gap-2 mb-3 text-slate-900 font-bold"><ShieldCheck size={20}/> Travel Insurance</div>
@@ -485,7 +368,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
       
-      {/* Smart Back Button */}
+      {/* UPDATED: Darker gray and medium weight for clarity */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
@@ -496,11 +379,12 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
       <div className="flex flex-col md:flex-row gap-8">
         <div className="flex-1 space-y-8">
           <div className="print:hidden">
-            <h2 className="text-3xl text-gray-800 mb-2" style={{ fontFamily: BRAND.fontHeader }}>Trip Checklist: <span style={{ color: BRAND.primary }}>{displayDestination}</span></h2>
+            <h2 className="text-3xl text-gray-800 mb-2" style={{ fontFamily: BRAND.fontHeader }}>Trip Checklist: <span style={{ color: BRAND.primary }}>{destinationSearch}</span></h2>
             <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4"><div className="bg-[#34a4b8] h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div></div>
             <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
           </div>
           <div>
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
              {itinerary.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
@@ -537,6 +421,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              )}
           </div>
           <div>
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                {essentials.map((item) => {
@@ -558,6 +443,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
           </div>
           <div className="print:hidden">
+             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
@@ -819,4 +705,4 @@ export default function App() {
       </main>
     </div>
   );
-}
+    }
