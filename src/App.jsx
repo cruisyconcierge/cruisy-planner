@@ -16,7 +16,6 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
-// --- SUPPORTED DESTINATIONS LIST (Full Names) ---
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
   "Nassau, Bahamas",
@@ -60,22 +59,17 @@ const GLOBAL_GEAR = [
 const fetchRealActivities = async (destinationSelection) => {
   try {
     const searchTerm = destinationSelection.split(',')[0].trim();
-    console.log("Searching for:", searchTerm); // Debug Log
     
     // 1. Fetch Location Hub
     const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${searchTerm}&acf_format=standard`);
-    if (!destRes.ok) throw new Error(`Location fetch failed: ${destRes.status}`);
     const destData = await destRes.json();
-    console.log("Location Data:", destData); // Debug Log
     
     const hub = destData.length > 0 ? destData[0] : {}; 
     const acf = hub.acf || {};
 
     // 2. Fetch Activities
     const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${searchTerm}&_embed&per_page=20&acf_format=standard`);
-    if (!actRes.ok) throw new Error(`Activities fetch failed: ${actRes.status}`);
     const actData = await actRes.json();
-    console.log("Activities Data:", actData); // Debug Log
 
     // 3. Map WordPress Data
     const mappedActivities = actData.map(post => {
@@ -92,8 +86,8 @@ const fetchRealActivities = async (destinationSelection) => {
         price: Number(post.acf?.price) || 0,
         duration: post.acf?.duration || "Varies",
         category: post.acf?.category || "Activity",
-        excerpt: post.excerpt?.rendered?.replace(/<[^>]+>/g, '') || '', 
-        description: post.content?.rendered || '', 
+        excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
+        description: post.content.rendered, 
         bookingUrl: bookUrl,
         tags: [] 
       };
@@ -317,71 +311,27 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
              </div>
           </div>
         </div>
-
-        {/* --- DYNAMIC SIDEBAR --- */}
         <div className="lg:w-80 space-y-6">
+          <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
+             <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
+             <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
+             <div className="space-y-2">
+               {searchResults.stayPartners.map((partner, idx) => (
+                 <Button key={idx} fullWidth onClick={() => window.open(partner.url, '_blank')} className={`${partner.color} text-white shadow-sm border-none justify-between`}>
+                   <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
+                 </Button>
+               ))}
+             </div>
+          </Card>
+          <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
+             <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
+             <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
+          </Card>
+          <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
+             <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
+             <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
+          </Card>
           
-          {/* HOTELS CARD */}
-          {searchResults.stayPartners.length > 0 && (
-            <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-               <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
-               <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
-               <div className="space-y-2">
-                 {searchResults.stayPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))}
-               </div>
-            </Card>
-          )}
-
-          {/* FLIGHTS CARD */}
-          {searchResults.flightPartners.length > 0 && (
-            <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
-               <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
-               <div className="space-y-2">
-                 {searchResults.flightPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))}
-               </div>
-            </Card>
-          )}
-
-          {/* CARS CARD */}
-          {searchResults.carPartners.length > 0 && (
-            <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
-               <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
-               <div className="space-y-2">
-                 {searchResults.carPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))}
-               </div>
-            </Card>
-          )}
-
           {/* TRAVEL INSURANCE (Always Visible) */}
           <Card className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-200">
              <div className="flex items-center gap-2 mb-3 text-slate-900 font-bold"><ShieldCheck size={20}/> Travel Insurance</div>
@@ -395,6 +345,11 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
              </Button>
           </Card>
 
+          {/* SIDEBAR DISCLAIMER */}
+          <div className="text-xs text-center text-gray-400 mt-4 px-2">
+            <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
+            We may earn a small commission if you book through our links, at no extra cost to you.
+          </div>
         </div>
       </div>
     </div>
@@ -515,6 +470,12 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
              <Button fullWidth onClick={handleEmailItinerary} className="flex gap-2 items-center justify-center"><Mail size={16} /> Email Checklist</Button>
              <Button variant="ghost" fullWidth onClick={() => window.print()} className="mt-2 flex gap-2 items-center justify-center text-xs"><Printer size={14} /> Print Checklist</Button>
+             
+             {/* CHECKLIST VIEW DISCLAIMER */}
+             <div className="text-xs text-center text-gray-400 mt-4 px-2">
+                <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
+                We may earn a small commission if you book through our links, at no extra cost to you.
+             </div>
            </Card>
         </div>
       </div>
