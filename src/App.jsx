@@ -19,7 +19,7 @@ const BRAND = {
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
   "Nassau, Bahamas",
-  "St Thomas, US Virgin Islands",
+  "St Thomas, US Virgin Islands", // Fixed: Removed period to match WordPress
   "Honolulu, Hawaii",
   "Cozumel, Mexico",
   "Sydney, Australia",
@@ -33,7 +33,6 @@ const AVAILABLE_DESTINATIONS = [
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
-  "St Thomas": "https://cruisytravel.com/st-thomas-activities/,
 };
 
 // Map IDs to Icons for Checklist
@@ -181,7 +180,7 @@ const fetchRealActivities = async (destinationSelection) => {
       stayPartners,
       flightPartners,
       carPartners,
-      // Removed Dining
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
       // Removed Weather
     };
