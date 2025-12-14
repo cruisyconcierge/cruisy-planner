@@ -37,6 +37,10 @@ const DESTINATION_URLS = {
   "Honolulu": "https://cruisytravel.com/honolulu-activities/",
   "Cozumel": "https://cruisytravel.com/cozumel-activities/",
   "Sydney": "https://cruisytravel.com/sydney-activities/",
+  "Barcelona": "https://cruisytravel.com/barcelona-activities/",
+  "Chania": "https://cruisytravel.com/chania-activities/",
+  "Orlando": "https://cruisytravel.com/orlando-activities/",
+  "Miami": "https://cruisytravel.com/miami-activities/",
 };
 
 // Map IDs to Icons for Checklist
