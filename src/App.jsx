@@ -33,6 +33,7 @@ const AVAILABLE_DESTINATIONS = [
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
+  "St Thomas": "https://cruisytravel.com/st-thomas-activities/,
 };
 
 // Map IDs to Icons for Checklist
