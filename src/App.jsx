@@ -30,7 +30,6 @@ const AVAILABLE_DESTINATIONS = [
 ];
 
 // MANUAL URL OVERRIDES
-// Use this to force a specific "See More" link for a destination
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
@@ -172,6 +171,7 @@ const fetchRealActivities = async (destinationSelection) => {
         }];
     }
 
+    // Check for manual override, then hub link, then search fallback
     const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
 
     return {
@@ -180,9 +180,9 @@ const fetchRealActivities = async (destinationSelection) => {
       stayPartners,
       flightPartners,
       carPartners,
-      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
+      // Removed Dining
       activities: mappedActivities,
-      // Removed weather
+      // Removed Weather
     };
 
   } catch (error) {
@@ -303,10 +303,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
         <div>
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-        </div>
-        <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
-           <Sun className="text-yellow-500" size={20}/>
-           <div><div className="text-xs text-gray-400 font-bold uppercase">Forecast</div><div className="font-bold text-gray-700">{searchResults.weather.temp}°F {searchResults.weather.condition}</div></div>
         </div>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
@@ -743,6 +739,7 @@ export default function App() {
       ...(flightEssentials ? [flightEssentials] : []),
       ...(hotelEssential ? [hotelEssential] : []),
       ...(carEssential ? [carEssential] : []),
+      // Removed Dining
       { id: 'insurance', title: 'Travel Insurance (World Nomads)', isBooked: false, link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', cta: 'Get Quote' }
     ]);
     
