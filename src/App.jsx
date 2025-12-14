@@ -3,7 +3,7 @@ import {
   MapPin, Calendar, DollarSign, Plane, Hotel, 
   Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Info, ChevronDown, ShieldCheck
+  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
@@ -29,11 +29,18 @@ const AVAILABLE_DESTINATIONS = [
   "Miami, Florida"
 ];
 
+// MANUAL URL OVERRIDES
+// Use this to force a specific "See More" link for a destination
+const DESTINATION_URLS = {
+  "Key West": "https://cruisytravel.com/key-west-activities/",
+};
+
 // Map IDs to Icons for Checklist
 const ICON_MAP = {
   flight: Plane,
   hotel: Hotel,
   car: Car,
+  dining: Utensils,
   insurance: ShieldCheck
 };
 
@@ -103,9 +110,20 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Trivago", key: "trivago_link", icon: Search, color: "#f48f00" }
     ];
 
-    const stayPartners = potentialStays
+    let stayPartners = potentialStays
       .filter(p => acf[p.key]) 
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
+      
+    // Fallback if no hotel links provided
+    if (stayPartners.length === 0) {
+       stayPartners = [{
+          name: "Find Hotels",
+          icon: Hotel,
+          color: "#003580",
+          textColor: "white",
+          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
+       }];
+    }
 
     // 5. DYNAMIC PARTNER LOGIC (Flights)
     const potentialFlights = [
@@ -114,9 +132,22 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Expedia Flights", key: "expedia_flight_link", icon: Plane, color: "#FFD700", textColor: "#000" }
     ];
 
-    const flightPartners = potentialFlights
+    let flightPartners = potentialFlights
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
+    
+    // Fallback Flight Link
+    let genericFlightLink = acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`;
+    
+    if (flightPartners.length === 0) {
+        flightPartners = [{
+            name: "Check Flights",
+            icon: Plane,
+            color: "#00a991",
+            textColor: "white",
+            url: genericFlightLink
+        }];
+    }
 
     // 6. DYNAMIC PARTNER LOGIC (Cars)
     const potentialCars = [
@@ -124,18 +155,33 @@ const fetchRealActivities = async (destinationSelection) => {
       { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
     ];
 
-    const carPartners = potentialCars
+    let carPartners = potentialCars
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
 
+    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`;
+    
+    if (carPartners.length === 0) {
+        carPartners = [{
+            name: "Find Rental Cars",
+            icon: Car,
+            color: "#ff5a00",
+            textColor: "white",
+            url: genericCarLink
+        }];
+    }
+
+    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
+
     return {
       destinationName: hub.title?.rendered || searchTerm, 
-      destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${searchTerm}`,
+      destinationPageUrl: destinationUrl,
       stayPartners,
       flightPartners,
       carPartners,
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
-      weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
+      // Removed weather
     };
 
   } catch (error) {
@@ -257,10 +303,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
         </div>
-        <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
-           <Sun className="text-yellow-500" size={20}/>
-           <div><div className="text-xs text-gray-400 font-bold uppercase">Forecast</div><div className="font-bold text-gray-700">{searchResults.weather.temp}°F {searchResults.weather.condition}</div></div>
-        </div>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
         <div className="flex-1 space-y-6">
@@ -372,8 +414,7 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                    </Button>
                  ))
                ) : (
-                 // Safety fallback
-                 <Button fullWidth onClick={() => {}} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
+                 <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
                )}
              </div>
           </Card>
@@ -481,11 +522,29 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                         <button onClick={() => toggleBooked(item.id, 'essential')} className={`${item.isBooked ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'} print:hidden`}>{item.isBooked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
                         <div>
                           <div className={`font-bold ${item.isBooked ? 'text-green-700' : 'text-gray-800'}`}>{item.title}</div>
-                          <a href={item.link} target="_blank" className="text-xs text-[#34a4b8] hover:underline flex items-center gap-1 print:hidden">{item.cta} <ExternalLink size={10}/></a>
-                          <div className="hidden print:block text-xs text-gray-400 mt-1">{item.link}</div>
+                          
+                          {/* Logic for SubLinks vs Single Link */}
+                          {item.subLinks ? (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {item.subLinks.map((link, idx) => (
+                                <a key={idx} href={link.url} target="_blank" className="text-xs bg-gray-100 hover:bg-[#34a4b8] hover:text-white text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1 print:hidden">
+                                  {link.name} <ExternalLink size={10}/>
+                                </a>
+                              ))}
+                              {/* Print view for sublinks */}
+                              <div className="hidden print:block text-xs text-gray-400 mt-1">
+                                {item.subLinks.map(l => l.name + ": " + l.url).join(', ')}
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <a href={item.link} target="_blank" className="text-xs text-[#34a4b8] hover:underline flex items-center gap-1 print:hidden">{item.cta} <ExternalLink size={10}/></a>
+                              <div className="hidden print:block text-xs text-gray-400 mt-1">{item.link}</div>
+                            </>
+                          )}
                         </div>
                       </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -651,30 +710,34 @@ export default function App() {
     setSearchResults(results);
     
     // Initialize Essentials Checklist based on destination
+    
+    // Initialize Essentials Checklist based on destination
+    const flightEssentials = results.flightPartners.length > 0 
+        ? { 
+            id: 'flight', 
+            title: `Flights to ${results.destinationName}`, 
+            isBooked: false, 
+            subLinks: results.flightPartners 
+          }
+        : (results.flightLink ? { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' } : null);
+
+    const hotelEssential = results.stayPartners.length > 0 
+        ? { 
+            id: 'hotel', 
+            title: `Stay in ${results.destinationName}`, 
+            isBooked: false, 
+            subLinks: results.stayPartners 
+          } 
+        : null;
+
+    const carEssential = results.carPartners.length > 0
+        ? { id: 'car', title: `Rental Car`, isBooked: false, subLinks: results.carPartners }
+        : null;
+
     setEssentials([
-      // Flights (Loop through all flight partners)
-      ...(results.flightPartners.length > 0 
-          ? results.flightPartners.map(p => ({
-              id: 'flight', 
-              title: `Flight via ${p.name}`, 
-              isBooked: false, 
-              link: p.url, 
-              cta: 'Check Prices'
-            }))
-          : (results.flightLink ? [{ id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' }] : [])),
-
-      // Hotels (First available for checklist simplicity, or map all?)
-      // Mapping all might be too much for a checklist, let's grab the first one as "Accommodation"
-      ...(results.stayPartners.length > 0 
-          ? [{ id: 'hotel', title: `Stay in ${results.destinationName}`, isBooked: false, link: results.stayPartners[0].url, cta: 'Find Hotel' }] 
-          : []),
-
-      // Cars (First available)
-      ...(results.carPartners.length > 0 
-          ? [{ id: 'car', title: `Rental Car`, isBooked: false, link: results.carPartners[0].url, cta: 'Search Cars' }] 
-          : []),
-      
-      // Insurance
+      ...(flightEssentials ? [flightEssentials] : []),
+      ...(hotelEssential ? [hotelEssential] : []),
+      ...(carEssential ? [carEssential] : []),
       { id: 'insurance', title: 'Travel Insurance (World Nomads)', isBooked: false, link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', cta: 'Get Quote' }
     ]);
     
@@ -708,7 +771,14 @@ export default function App() {
     });
     body += `========================================\nTRIP ESSENTIALS\n========================================\n\n`;
     essentials.forEach((item) => {
-      body += `- ${item.title}\n  Link: ${item.link}\n`;
+      body += `- ${item.title}\n`;
+      if (item.subLinks) {
+         item.subLinks.forEach(sub => {
+             body += `  ${sub.name}: ${sub.url}\n`;
+         });
+      } else {
+         body += `  Link: ${item.link}\n`;
+      }
     });
     body += `\nWarmly,\nThe Cruisy Travel Team`;
     window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
@@ -747,4 +817,4 @@ export default function App() {
       </main>
     </div>
   );
-                                                                                          }
+}
