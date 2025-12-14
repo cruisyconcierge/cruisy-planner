@@ -33,6 +33,7 @@ const AVAILABLE_DESTINATIONS = [
 // Use this to force a specific "See More" link for a destination
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
+  "Nassau": "https://cruisytravel.com/nassau-activities/",
 };
 
 // Map IDs to Icons for Checklist
@@ -302,6 +303,10 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
         <div>
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
+        </div>
+        <div className="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100 flex items-center gap-3">
+           <Sun className="text-yellow-500" size={20}/>
+           <div><div className="text-xs text-gray-400 font-bold uppercase">Forecast</div><div className="font-bold text-gray-700">{searchResults.weather.temp}°F {searchResults.weather.condition}</div></div>
         </div>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
