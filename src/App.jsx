@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   MapPin, Calendar, DollarSign, Plane, Hotel, 
-  Star, Save, User, ArrowRight, Check, Loader2, 
+  Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
   ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck
 } from 'lucide-react';
@@ -28,6 +28,12 @@ const AVAILABLE_DESTINATIONS = [
   "Orlando, Florida",
   "Miami, Florida"
 ];
+
+// MANUAL URL OVERRIDES
+// Use this to force a specific "See More" link for a destination
+const DESTINATION_URLS = {
+  "Key West": "https://cruisytravel.com/key-west-activities/",
+};
 
 // Map IDs to Icons for Checklist
 const ICON_MAP = {
@@ -129,9 +135,12 @@ const fetchRealActivities = async (destinationSelection) => {
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
 
+    // Check for manual override, then hub link, then search fallback
+    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
+
     return {
       destinationName: hub.title?.rendered || searchTerm, 
-      destinationPageUrl: hub.link || `https://cruisytravel.com/?s=${searchTerm}`,
+      destinationPageUrl: destinationUrl,
       stayPartners,
       flightPartners,
       carPartners,
@@ -329,12 +338,11 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           )}
 
           {/* FLIGHTS CARD */}
-          <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
-             <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
-             <div className="space-y-2">
-               {/* Check for specific partners, otherwise use generic link */}
-               {searchResults.flightPartners && searchResults.flightPartners.length > 0 ? (
-                 searchResults.flightPartners.map((partner, idx) => (
+          {searchResults.flightPartners.length > 0 && (
+            <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
+               <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
+               <div className="space-y-2">
+                 {searchResults.flightPartners.map((partner, idx) => (
                    <Button 
                      key={idx} 
                      fullWidth 
@@ -344,20 +352,17 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                    >
                      <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
                    </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
-               )}
-             </div>
-          </Card>
+                 ))}
+               </div>
+            </Card>
+          )}
 
           {/* CARS CARD */}
-          <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
-             <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
-             <div className="space-y-2">
-                {/* Check for specific partners, otherwise use generic link */}
-                {searchResults.carPartners && searchResults.carPartners.length > 0 ? (
-                 searchResults.carPartners.map((partner, idx) => (
+          {searchResults.carPartners.length > 0 && (
+            <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
+               <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
+               <div className="space-y-2">
+                 {searchResults.carPartners.map((partner, idx) => (
                    <Button 
                      key={idx} 
                      fullWidth 
@@ -367,12 +372,10 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                    >
                      <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
                    </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
-               )}
-             </div>
-          </Card>
+                 ))}
+               </div>
+            </Card>
+          )}
 
           {/* TRAVEL INSURANCE (Always Visible) */}
           <Card className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-200">
@@ -415,7 +418,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
          <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
       </div>
       
-      {/* UPDATED: Darker gray and medium weight for clarity */}
+      {/* Smart Back Button */}
       <button 
         onClick={() => searchResults ? setView('list') : setView('search')} 
         className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
@@ -431,7 +434,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
             <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
           </div>
           <div>
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
              {itinerary.length === 0 ? (
                 <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
@@ -468,7 +470,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              )}
           </div>
           <div>
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
                {essentials.map((item) => {
@@ -490,7 +491,6 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
              </div>
           </div>
           <div className="print:hidden">
-             {/* UPDATED: Header color */}
              <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
              <div className="grid grid-cols-2 gap-4">
                 {GLOBAL_GEAR.map((p, i) => (
@@ -645,7 +645,6 @@ export default function App() {
     }
 
     if (results.activities.length === 0) {
-        // Show the user exactly what we searched for to help debug
         alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
         setView('search');
         return;
