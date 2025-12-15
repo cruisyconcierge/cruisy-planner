@@ -18,7 +18,6 @@ const BRAND = {
 };
 
 // --- EMAIL SETTINGS ---
-// This is where the Wizard answers will be sent.
 const CONCIERGE_EMAIL = "hello@cruisytravel.com";
 
 const AVAILABLE_DESTINATIONS = [
@@ -219,8 +218,32 @@ const Card = ({ children, className = '' }) => (
 
 // --- 4. SUB-VIEWS ---
 
+// Helper components for Wizard (Defined OUTSIDE WizardView to prevent focus loss)
+const WizardStep = ({ title, children }) => (
+  <div className="animate-fade-in">
+    <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
+    {children}
+  </div>
+);
+
+const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
+  <button 
+    onClick={onClick}
+    className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+      selected 
+      ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
+      : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+    }`}
+    style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
+  >
+    <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
+      <Icon size={24} />
+    </div>
+    <span className="font-bold text-lg">{label}</span>
+  </button>
+);
+
 // --- NEW WIZARD COMPONENT ---
-// Moved outside of App component to prevent re-renders (focus loss)
 const WizardView = ({ setView }) => {
   const [step, setStep] = useState(0);
   const [wizardData, setWizardData] = useState({
@@ -253,30 +276,6 @@ const WizardView = ({ setView }) => {
   };
 
   const updateData = (key, value) => setWizardData(prev => ({...prev, [key]: value}));
-
-  const WizardStep = ({ title, children }) => (
-    <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
-      {children}
-    </div>
-  );
-
-  const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
-    <button 
-      onClick={onClick}
-      className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-        selected 
-        ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
-        : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
-      }`}
-      style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
-    >
-      <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
-        <Icon size={24} />
-      </div>
-      <span className="font-bold text-lg">{label}</span>
-    </button>
-  );
 
   // Success View after sending email
   if (isSubmitted) {
@@ -708,7 +707,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -992,4 +991,4 @@ export default function App() {
       </main>
     </div>
   );
-}
+          }
