@@ -261,7 +261,7 @@ const WizardView = ({ setView }) => {
   const handleFinish = () => {
     // Better Email Format
     const subject = `🌴 New Trip Request: ${wizardData.destination || 'Custom Destination'}`;
-    const body = `Hi Cruisy Concierge,\n\nI am interested in planning a new trip! Here are my details:\n\n` +
+    const body = `Hi Cruisy Travel,\n\nI am interested in planning a new trip! Here are my details:\n\n` +
       `------------------------------------------\n` +
       `📍 DESTINATION:\n${wizardData.destination}\n\n` +
       `✨ VIBE:\n${wizardData.vibe}\n\n` +
