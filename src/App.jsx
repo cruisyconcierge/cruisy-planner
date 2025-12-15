@@ -19,7 +19,7 @@ const BRAND = {
 
 // --- EMAIL SETTINGS ---
 // This is where the Wizard answers will be sent.
-const CONCIERGE_EMAIL = ".com"; hello@cruisytravel.com
+const CONCIERGE_EMAIL = "hello@cruisytravel.com";
 
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
@@ -301,7 +301,7 @@ const LoadingView = ({ destinationSearch }) => (
   </div>
 );
 
-// --- WIZARD COMPONENT (Interactive Form) ---
+// --- WIZARD COMPONENT (Restored) ---
 const WizardView = ({ setView }) => {
   const [step, setStep] = useState(0);
   const [wizardData, setWizardData] = useState({
@@ -809,6 +809,9 @@ export default function App() {
     localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
   }, [essentials]);
   
+  // --- REMOVED AUTO RESIZE LOGIC TO FIX OVERLAY/SCROLLING ISSUES ---
+  // The iframe will now handle scrolling internally within the fixed height container.
+
   // Inject Fonts
   useEffect(() => {
     const link = document.createElement('link');
