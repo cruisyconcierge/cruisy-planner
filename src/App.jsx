@@ -219,6 +219,163 @@ const Card = ({ children, className = '' }) => (
 
 // --- 4. SUB-VIEWS ---
 
+// --- NEW WIZARD COMPONENT ---
+// Moved outside of App component to prevent re-renders (focus loss)
+const WizardView = ({ setView }) => {
+  const [step, setStep] = useState(0);
+  const [wizardData, setWizardData] = useState({
+    destination: '',
+    vibe: '',
+    activityType: '',
+    stayType: '',
+    dates: ''
+  });
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleNext = () => setStep(step + 1);
+  const handleBack = () => step === 0 ? setView('search') : setStep(step - 1);
+  
+  const handleFinish = () => {
+    // Better Email Format
+    const subject = `🌴 New Trip Request: ${wizardData.destination || 'Custom Destination'}`;
+    const body = `Hi Cruisy Concierge,\n\nI am interested in planning a new trip! Here are my details:\n\n` +
+      `------------------------------------------\n` +
+      `📍 DESTINATION:\n${wizardData.destination}\n\n` +
+      `✨ VIBE:\n${wizardData.vibe}\n\n` +
+      `🚣 ACTIVITIES:\n${wizardData.activityType}\n\n` +
+      `🏨 STAY PREFERENCE:\n${wizardData.stayType}\n\n` +
+      `📅 DATES:\n${wizardData.dates}\n` +
+      `------------------------------------------\n\n` +
+      `Please contact me with some options. Thanks!`;
+
+    window.location.href = `mailto:${CONCIERGE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    setIsSubmitted(true);
+  };
+
+  const updateData = (key, value) => setWizardData(prev => ({...prev, [key]: value}));
+
+  const WizardStep = ({ title, children }) => (
+    <div className="animate-fade-in">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
+      {children}
+    </div>
+  );
+
+  const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
+    <button 
+      onClick={onClick}
+      className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+        selected 
+        ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
+        : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+      }`}
+      style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
+    >
+      <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
+        <Icon size={24} />
+      </div>
+      <span className="font-bold text-lg">{label}</span>
+    </button>
+  );
+
+  // Success View after sending email
+  if (isSubmitted) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center animate-fade-in">
+        <Card className="p-12 shadow-2xl flex flex-col items-center justify-center min-h-[400px]">
+          <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
+            <Check size={40} />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4" style={{ fontFamily: BRAND.fontHeader }}>Request Sent!</h2>
+          <p className="text-lg text-gray-500 mb-8 max-w-md">
+            Thanks for sharing your travel dreams. Your email app should have opened a draft for you to send. We'll be in touch shortly!
+          </p>
+          <Button onClick={() => setView('search')}>Plan Another Trip</Button>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="w-full bg-gray-200 h-2 rounded-full mb-8">
+        <div 
+          className="h-full rounded-full transition-all duration-300"
+          style={{ width: `${((step + 1) / 5) * 100}%`, backgroundColor: BRAND.primary }}
+        ></div>
+      </div>
+
+      <Card className="p-8 shadow-2xl relative min-h-[400px] flex flex-col">
+        {step === 0 && (
+          <WizardStep title="Where do you want to go?">
+             <input 
+               type="text" 
+               placeholder="e.g. Bora Bora, Japan, The Moon..."
+               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
+               value={wizardData.destination}
+               onChange={(e) => updateData('destination', e.target.value)}
+             />
+             <p className="text-gray-400 mt-4 text-sm">Since we don't have a curated guide for this yet, tell us where you're dreaming of!</p>
+          </WizardStep>
+        )}
+
+        {step === 1 && (
+          <WizardStep title="What's the vibe?">
+            <div className="space-y-3">
+              <OptionButton icon={Palmtree} label="Chill & Relax" selected={wizardData.vibe === 'Chill'} onClick={() => updateData('vibe', 'Chill')} />
+              <OptionButton icon={Martini} label="Party & Nightlife" selected={wizardData.vibe === 'Party'} onClick={() => updateData('vibe', 'Party')} />
+              <OptionButton icon={Mountain} label="Adventure & Active" selected={wizardData.vibe === 'Adventure'} onClick={() => updateData('vibe', 'Adventure')} />
+              <OptionButton icon={Heart} label="Romantic Getaway" selected={wizardData.vibe === 'Romantic'} onClick={() => updateData('vibe', 'Romantic')} />
+            </div>
+          </WizardStep>
+        )}
+
+        {step === 2 && (
+          <WizardStep title="What do you want to do?">
+             <textarea 
+               className="w-full border-2 border-gray-100 rounded-xl p-4 h-32 focus:border-[#34a4b8] outline-none resize-none"
+               placeholder="e.g. Snorkeling, hiking, food tours, museum hopping..."
+               value={wizardData.activityType}
+               onChange={(e) => updateData('activityType', e.target.value)}
+             ></textarea>
+          </WizardStep>
+        )}
+
+        {step === 3 && (
+           <WizardStep title="Preferred Stay Style">
+             <div className="space-y-3">
+               <OptionButton icon={Hotel} label="Hotel / Resort" selected={wizardData.stayType === 'Hotel'} onClick={() => updateData('stayType', 'Hotel')} />
+               <OptionButton icon={Home} label="Private Villa / Rental" selected={wizardData.stayType === 'Rental'} onClick={() => updateData('stayType', 'Rental')} />
+               <OptionButton icon={Ship} label="Cruise Ship" selected={wizardData.stayType === 'Cruise'} onClick={() => updateData('stayType', 'Cruise')} />
+             </div>
+           </WizardStep>
+        )}
+
+        {step === 4 && (
+          <WizardStep title="When are you going?">
+            <input 
+               type="text" 
+               placeholder="e.g. Next Summer, Dec 2025..."
+               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
+               value={wizardData.dates}
+               onChange={(e) => updateData('dates', e.target.value)}
+             />
+          </WizardStep>
+        )}
+
+        <div className="mt-auto flex justify-between pt-8">
+           <button onClick={handleBack} className="text-gray-400 font-bold hover:text-gray-600">Back</button>
+           {step < 4 ? (
+             <Button onClick={handleNext} disabled={step === 0 && !wizardData.destination}>Next <ChevronRight size={18}/></Button>
+           ) : (
+             <Button onClick={handleFinish}>Request Quote</Button>
+           )}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
   <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
     <div className="text-center mb-10">
@@ -300,133 +457,6 @@ const LoadingView = ({ destinationSearch }) => (
     <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Scouting {destinationSearch}...</h2>
   </div>
 );
-
-// --- WIZARD COMPONENT (Restored) ---
-const WizardView = ({ setView }) => {
-  const [step, setStep] = useState(0);
-  const [wizardData, setWizardData] = useState({
-    destination: '',
-    vibe: '',
-    activityType: '',
-    stayType: '',
-    dates: ''
-  });
-
-  const handleNext = () => setStep(step + 1);
-  const handleBack = () => step === 0 ? setView('search') : setStep(step - 1);
-  
-  const handleFinish = () => {
-    // Logic to handle submission (email to concierge)
-    const subject = `New Custom Trip Request: ${wizardData.destination || 'Somewhere Else'}`;
-    const body = `I am looking to plan a trip!\n\nDestination: ${wizardData.destination}\nVibe: ${wizardData.vibe}\nActivities: ${wizardData.activityType}\nStay Preference: ${wizardData.stayType}\nDates: ${wizardData.dates}\n\nPlease contact me with options.`;
-    window.location.href = `mailto:${CONCIERGE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  };
-
-  const updateData = (key, value) => setWizardData({...wizardData, [key]: value});
-
-  const WizardStep = ({ title, children }) => (
-    <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
-      {children}
-    </div>
-  );
-
-  const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
-    <button 
-      onClick={onClick}
-      className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-        selected 
-        ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
-        : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
-      }`}
-      style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
-    >
-      <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
-        <Icon size={24} />
-      </div>
-      <span className="font-bold text-lg">{label}</span>
-    </button>
-  );
-
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="w-full bg-gray-200 h-2 rounded-full mb-8">
-        <div 
-          className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${((step + 1) / 5) * 100}%`, backgroundColor: BRAND.primary }}
-        ></div>
-      </div>
-
-      <Card className="p-8 shadow-2xl relative min-h-[400px] flex flex-col">
-        {step === 0 && (
-          <WizardStep title="Where do you want to go?">
-             <input 
-               type="text" 
-               placeholder="e.g. Bora Bora, Japan, The Moon..."
-               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
-               value={wizardData.destination}
-               onChange={(e) => updateData('destination', e.target.value)}
-             />
-             <p className="text-gray-400 mt-4 text-sm">Since we don't have a curated guide for this yet, tell us where you're dreaming of!</p>
-          </WizardStep>
-        )}
-
-        {step === 1 && (
-          <WizardStep title="What's the vibe?">
-            <div className="space-y-3">
-              <OptionButton icon={Palmtree} label="Chill & Relax" selected={wizardData.vibe === 'Chill'} onClick={() => updateData('vibe', 'Chill')} />
-              <OptionButton icon={Martini} label="Party & Nightlife" selected={wizardData.vibe === 'Party'} onClick={() => updateData('vibe', 'Party')} />
-              <OptionButton icon={Mountain} label="Adventure & Active" selected={wizardData.vibe === 'Adventure'} onClick={() => updateData('vibe', 'Adventure')} />
-              <OptionButton icon={Heart} label="Romantic Getaway" selected={wizardData.vibe === 'Romantic'} onClick={() => updateData('vibe', 'Romantic')} />
-            </div>
-          </WizardStep>
-        )}
-
-        {step === 2 && (
-          <WizardStep title="What do you want to do?">
-             <textarea 
-               className="w-full border-2 border-gray-100 rounded-xl p-4 h-32 focus:border-[#34a4b8] outline-none resize-none"
-               placeholder="e.g. Snorkeling, hiking, food tours, museum hopping..."
-               value={wizardData.activityType}
-               onChange={(e) => updateData('activityType', e.target.value)}
-             ></textarea>
-          </WizardStep>
-        )}
-
-        {step === 3 && (
-           <WizardStep title="Preferred Stay Style">
-             <div className="space-y-3">
-               <OptionButton icon={Hotel} label="Hotel / Resort" selected={wizardData.stayType === 'Hotel'} onClick={() => updateData('stayType', 'Hotel')} />
-               <OptionButton icon={Home} label="Private Villa / Rental" selected={wizardData.stayType === 'Rental'} onClick={() => updateData('stayType', 'Rental')} />
-               <OptionButton icon={Ship} label="Cruise Ship" selected={wizardData.stayType === 'Cruise'} onClick={() => updateData('stayType', 'Cruise')} />
-             </div>
-           </WizardStep>
-        )}
-
-        {step === 4 && (
-          <WizardStep title="When are you going?">
-            <input 
-               type="text" 
-               placeholder="e.g. Next Summer, Dec 2025..."
-               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
-               value={wizardData.dates}
-               onChange={(e) => updateData('dates', e.target.value)}
-             />
-          </WizardStep>
-        )}
-
-        <div className="mt-auto flex justify-between pt-8">
-           <button onClick={handleBack} className="text-gray-400 font-bold hover:text-gray-600">Back</button>
-           {step < 4 ? (
-             <Button onClick={handleNext} disabled={step === 0 && !wizardData.destination}>Next <ChevronRight size={18}/></Button>
-           ) : (
-             <Button onClick={handleFinish}>Request Quote</Button>
-           )}
-        </div>
-      </Card>
-    </div>
-  );
-};
 
 const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinerary, addToItinerary }) => {
   if (!searchResults) return null;
@@ -678,7 +708,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
+                      <div className="text-gray-400"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
