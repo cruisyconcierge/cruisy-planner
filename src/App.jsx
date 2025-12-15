@@ -3,7 +3,8 @@ import {
   MapPin, Calendar, DollarSign, Plane, Hotel, 
   Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck
+  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck,
+  Palmtree, Martini, Mountain, Heart // Icons for Wizard
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
@@ -16,31 +17,28 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
+// --- EMAIL SETTINGS ---
+// This is where the Wizard answers will be sent.
+const CONCIERGE_EMAIL = ".com"; hello@cruisytravel.com
+
 const AVAILABLE_DESTINATIONS = [
   "Key West, Florida",
   "Nassau, Bahamas",
-  "St Thomas, US Virgin Islands", // Fixed: Removed period to match WordPress
+  "St Thomas, US Virgin Islands",
   "Honolulu, Hawaii",
   "Cozumel, Mexico",
   "Sydney, Australia",
   "Barcelona, Spain",
   "Chania, Crete (Greece)",
   "Orlando, Florida",
-  "Miami, Florida"
+  "Miami, Florida",
+  "Somewhere Else" // Triggers the Wizard
 ];
 
 // MANUAL URL OVERRIDES
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
-  "St Thomas": "https://cruisytravel.com/st-thomas-activities/",
-  "Honolulu": "https://cruisytravel.com/honolulu-activities/",
-  "Cozumel": "https://cruisytravel.com/cozumel-activities/",
-  "Sydney": "https://cruisytravel.com/sydney-activities/",
-  "Barcelona": "https://cruisytravel.com/barcelona-activities/",
-  "Chania": "https://cruisytravel.com/chania-activities/",
-  "Orlando": "https://cruisytravel.com/orlando-activities/",
-  "Miami": "https://cruisytravel.com/miami-activities/",
 };
 
 // Map IDs to Icons for Checklist
@@ -303,6 +301,133 @@ const LoadingView = ({ destinationSearch }) => (
   </div>
 );
 
+// --- WIZARD COMPONENT (Interactive Form) ---
+const WizardView = ({ setView }) => {
+  const [step, setStep] = useState(0);
+  const [wizardData, setWizardData] = useState({
+    destination: '',
+    vibe: '',
+    activityType: '',
+    stayType: '',
+    dates: ''
+  });
+
+  const handleNext = () => setStep(step + 1);
+  const handleBack = () => step === 0 ? setView('search') : setStep(step - 1);
+  
+  const handleFinish = () => {
+    // Logic to handle submission (email to concierge)
+    const subject = `New Custom Trip Request: ${wizardData.destination || 'Somewhere Else'}`;
+    const body = `I am looking to plan a trip!\n\nDestination: ${wizardData.destination}\nVibe: ${wizardData.vibe}\nActivities: ${wizardData.activityType}\nStay Preference: ${wizardData.stayType}\nDates: ${wizardData.dates}\n\nPlease contact me with options.`;
+    window.location.href = `mailto:${CONCIERGE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const updateData = (key, value) => setWizardData({...wizardData, [key]: value});
+
+  const WizardStep = ({ title, children }) => (
+    <div className="animate-fade-in">
+      <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
+      {children}
+    </div>
+  );
+
+  const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
+    <button 
+      onClick={onClick}
+      className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
+        selected 
+        ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
+        : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
+      }`}
+      style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
+    >
+      <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
+        <Icon size={24} />
+      </div>
+      <span className="font-bold text-lg">{label}</span>
+    </button>
+  );
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="w-full bg-gray-200 h-2 rounded-full mb-8">
+        <div 
+          className="h-full rounded-full transition-all duration-300"
+          style={{ width: `${((step + 1) / 5) * 100}%`, backgroundColor: BRAND.primary }}
+        ></div>
+      </div>
+
+      <Card className="p-8 shadow-2xl relative min-h-[400px] flex flex-col">
+        {step === 0 && (
+          <WizardStep title="Where do you want to go?">
+             <input 
+               type="text" 
+               placeholder="e.g. Bora Bora, Japan, The Moon..."
+               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
+               value={wizardData.destination}
+               onChange={(e) => updateData('destination', e.target.value)}
+             />
+             <p className="text-gray-400 mt-4 text-sm">Since we don't have a curated guide for this yet, tell us where you're dreaming of!</p>
+          </WizardStep>
+        )}
+
+        {step === 1 && (
+          <WizardStep title="What's the vibe?">
+            <div className="space-y-3">
+              <OptionButton icon={Palmtree} label="Chill & Relax" selected={wizardData.vibe === 'Chill'} onClick={() => updateData('vibe', 'Chill')} />
+              <OptionButton icon={Martini} label="Party & Nightlife" selected={wizardData.vibe === 'Party'} onClick={() => updateData('vibe', 'Party')} />
+              <OptionButton icon={Mountain} label="Adventure & Active" selected={wizardData.vibe === 'Adventure'} onClick={() => updateData('vibe', 'Adventure')} />
+              <OptionButton icon={Heart} label="Romantic Getaway" selected={wizardData.vibe === 'Romantic'} onClick={() => updateData('vibe', 'Romantic')} />
+            </div>
+          </WizardStep>
+        )}
+
+        {step === 2 && (
+          <WizardStep title="What do you want to do?">
+             <textarea 
+               className="w-full border-2 border-gray-100 rounded-xl p-4 h-32 focus:border-[#34a4b8] outline-none resize-none"
+               placeholder="e.g. Snorkeling, hiking, food tours, museum hopping..."
+               value={wizardData.activityType}
+               onChange={(e) => updateData('activityType', e.target.value)}
+             ></textarea>
+          </WizardStep>
+        )}
+
+        {step === 3 && (
+           <WizardStep title="Preferred Stay Style">
+             <div className="space-y-3">
+               <OptionButton icon={Hotel} label="Hotel / Resort" selected={wizardData.stayType === 'Hotel'} onClick={() => updateData('stayType', 'Hotel')} />
+               <OptionButton icon={Home} label="Private Villa / Rental" selected={wizardData.stayType === 'Rental'} onClick={() => updateData('stayType', 'Rental')} />
+               <OptionButton icon={Ship} label="Cruise Ship" selected={wizardData.stayType === 'Cruise'} onClick={() => updateData('stayType', 'Cruise')} />
+             </div>
+           </WizardStep>
+        )}
+
+        {step === 4 && (
+          <WizardStep title="When are you going?">
+            <input 
+               type="text" 
+               placeholder="e.g. Next Summer, Dec 2025..."
+               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
+               value={wizardData.dates}
+               onChange={(e) => updateData('dates', e.target.value)}
+             />
+          </WizardStep>
+        )}
+
+        <div className="mt-auto flex justify-between pt-8">
+           <button onClick={handleBack} className="text-gray-400 font-bold hover:text-gray-600">Back</button>
+           {step < 4 ? (
+             <Button onClick={handleNext} disabled={step === 0 && !wizardData.destination}>Next <ChevronRight size={18}/></Button>
+           ) : (
+             <Button onClick={handleFinish}>Request Quote</Button>
+           )}
+        </div>
+      </Card>
+    </div>
+  );
+};
+
 const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinerary, addToItinerary }) => {
   if (!searchResults) return null;
   return (
@@ -553,7 +678,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -700,6 +825,12 @@ export default function App() {
     e.preventDefault();
     setView('loading');
     
+    // Switch to Wizard if "Somewhere Else" is selected
+    if (destinationSearch === "Somewhere Else") {
+      setView('wizard');
+      return;
+    }
+    
     // CALL THE REAL API
     const results = await fetchRealActivities(destinationSearch);
     
@@ -824,6 +955,7 @@ export default function App() {
         {view === 'list' && <ActivityListView searchResults={searchResults} setView={setView} setSelectedActivity={setSelectedActivity} itinerary={itinerary} addToItinerary={addToItinerary} />}
         {view === 'itinerary' && <ItineraryView itinerary={itinerary} setView={setView} essentials={essentials} toggleBooked={toggleBooked} removeFromItinerary={removeFromItinerary} handleEmailItinerary={handleEmailItinerary} destinationSearch={destinationSearch} searchResults={searchResults} />}
         {view === 'detail' && <DetailView selectedActivity={selectedActivity} itinerary={itinerary} setView={setView} addToItinerary={addToItinerary} searchResults={searchResults} />}
+        {view === 'wizard' && <WizardView setView={setView} />}
       </main>
     </div>
   );
