@@ -289,7 +289,10 @@ const WizardView = ({ setView }) => {
           <p className="text-lg text-gray-500 mb-8 max-w-md">
             Thanks for sharing your travel dreams. Your email app should have opened a draft for you to send. We'll be in touch shortly!
           </p>
-          <Button onClick={() => setView('search')}>Plan Another Trip</Button>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
+            <Button variant="outline" onClick={() => setIsSubmitted(false)}>Back to Request</Button>
+            <Button onClick={() => setView('search')}>Plan Another Trip</Button>
+          </div>
         </Card>
       </div>
     );
@@ -707,7 +710,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
+                      <div className="text-gray-400"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -991,4 +994,4 @@ export default function App() {
       </main>
     </div>
   );
-          }
+}
