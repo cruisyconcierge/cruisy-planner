@@ -1,997 +1,547 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  MapPin, Calendar, DollarSign, Plane, Hotel, 
-  Sun, Star, Save, User, ArrowRight, Check, Loader2, 
-  X, Ship, ShoppingBag, ExternalLink, Ticket, 
-  ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck,
-  Palmtree, Martini, Mountain, Heart // Icons for Wizard
+  Luggage, Sun, Shirt, ShoppingBag, Trash2, CheckSquare, 
+  Square, Anchor, Camera, X, Plus, ArrowRight, Compass, Watch, Smartphone,
+  Umbrella, Plane, Mountain, Snowflake, Building, Type,
+  Maximize2, Mail, ArrowLeft, Instagram, Pin, Shuffle, Facebook, Map as MapIcon
 } from 'lucide-react';
 
-// --- 1. CONFIGURATION & CONSTANTS ---
+// --- AFFILIATE CONFIGURATION ---
+const AMAZON_TAG = 'cruisytravel-20'; 
+const BRAND_LOGO = "https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png";
 
-const BRAND = {
-  primary: '#34a4b8',
-  primaryHover: '#2a8a9b',
-  fontHeader: '"Russo One", sans-serif',
-  fontBody: '"Roboto", sans-serif',
-  logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
-};
-
-// --- EMAIL SETTINGS ---
-const CONCIERGE_EMAIL = "hello@cruisytravel.com";
-
-const AVAILABLE_DESTINATIONS = [
-  "Key West, Florida",
-  "Nassau, Bahamas",
-  "St Thomas, US Virgin Islands",
-  "Honolulu, Hawaii",
-  "Cozumel, Mexico",
-  "Sydney, Australia",
-  "Barcelona, Spain",
-  "Chania, Crete (Greece)",
-  "Orlando, Florida",
-  "Miami, Florida",
-  "Somewhere Else" // Triggers the Wizard
-];
-
-// MANUAL URL OVERRIDES
-const DESTINATION_URLS = {
-  "Key West": "https://cruisytravel.com/key-west-activities/",
-  "Nassau": "https://cruisytravel.com/nassau-activities/",
-};
-
-// Map IDs to Icons for Checklist
-const ICON_MAP = {
-  flight: Plane,
-  hotel: Hotel,
-  car: Car,
-  dining: Utensils,
-  insurance: ShieldCheck
-};
-
-// --- GLOBAL GEAR (Affiliate Links) ---
-const GLOBAL_GEAR = [
-  { 
-    name: 'Vacation Classic Sunscreen SPF 30 (3-Pack)', 
-    price: 38, 
-    image: 'https://cruisytravel.com/wp-content/uploads/2025/12/71WTuq9sQxL._SL1500_.jpg', 
-    affiliateLink: 'https://amzn.to/3KmfiQ2' 
+// --- SAFETY HELPERS ---
+const safeLocalStorage = {
+  getItem: (key, fallback) => {
+    try {
+      const item = localStorage.getItem(key);
+      const parsed = item ? JSON.parse(item) : fallback;
+      return parsed !== null && parsed !== undefined ? parsed : fallback;
+    } catch (e) { return fallback; }
   },
-  { 
-    name: 'UGREEN MagFlow Power Bank 10000mAh', 
-    price: 49, 
-    image: 'https://cruisytravel.com/wp-content/uploads/2025/12/51Motba1XL._AC_SY741_.jpg', 
-    affiliateLink: 'https://amzn.to/49X8gvo' 
-  },
-];
-
-// --- 2. API LOGIC ---
-
-const fetchRealActivities = async (destinationSelection) => {
-  try {
-    const searchTerm = destinationSelection.split(',')[0].trim();
-    
-    // 1. Fetch Location Hub
-    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${searchTerm}&acf_format=standard`);
-    const destData = await destRes.json();
-    
-    const hub = destData.length > 0 ? destData[0] : {}; 
-    const acf = hub.acf || {};
-
-    // 2. Fetch Activities
-    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${searchTerm}&_embed&per_page=20&acf_format=standard`);
-    const actData = await actRes.json();
-
-    // 3. Map WordPress Data
-    const mappedActivities = actData.map(post => {
-      const img = post._embedded?.['wp:featuredmedia']?.[0]?.source_url 
-        || 'https://via.placeholder.com/600x400?text=No+Image';
-
-      let bookUrl = post.acf?.booking_url;
-      if (!bookUrl || bookUrl === "#") bookUrl = null;
-
-      return {
-        id: post.id,
-        title: post.title.rendered,
-        image: img,
-        price: Number(post.acf?.price) || 0,
-        duration: post.acf?.duration || "Varies",
-        category: post.acf?.category || "Activity",
-        excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
-        description: post.content.rendered, 
-        bookingUrl: bookUrl,
-        tags: [] 
-      };
-    });
-
-    // 4. DYNAMIC PARTNER LOGIC (Hotels)
-    const potentialStays = [
-      { name: "Booking.com", key: "booking_link", icon: Hotel, color: "#003580" },
-      { name: "Vrbo", key: "vrbo_link", icon: Home, color: "#1e3a8a" },
-      { name: "Hotels.com", key: "hotels_link", icon: Hotel, color: "#d32f2f" },
-      { name: "Expedia", key: "expedia_link", icon: Plane, color: "#FFD700", textColor: "#000" },
-      { name: "Orbitz", key: "orbitz_link", icon: Globe, color: "#005e83" },
-      { name: "Travelocity", key: "travelocity_link", icon: Star, color: "#003a70" },
-      { name: "Trivago", key: "trivago_link", icon: Search, color: "#f48f00" }
-    ];
-
-    let stayPartners = potentialStays
-      .filter(p => acf[p.key]) 
-      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-      
-    // Fallback if no hotel links provided
-    if (stayPartners.length === 0) {
-       stayPartners = [{
-          name: "Find Hotels",
-          icon: Hotel,
-          color: "#003580",
-          textColor: "white",
-          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
-       }];
-    }
-
-    // 5. DYNAMIC PARTNER LOGIC (Flights)
-    const potentialFlights = [
-      { name: "Kiwi.com", key: "kiwi_flight_link", icon: Plane, color: "#00a991" },
-      { name: "Booking.com Flights", key: "booking_flight_link", icon: Plane, color: "#003580" },
-      { name: "Expedia Flights", key: "expedia_flight_link", icon: Plane, color: "#FFD700", textColor: "#000" }
-    ];
-
-    let flightPartners = potentialFlights
-      .filter(p => acf[p.key])
-      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-    
-    // Fallback Flight Link
-    let genericFlightLink = acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`;
-    
-    if (flightPartners.length === 0) {
-        flightPartners = [{
-            name: "Check Flights",
-            icon: Plane,
-            color: "#00a991",
-            textColor: "white",
-            url: genericFlightLink
-        }];
-    }
-
-    // 6. DYNAMIC PARTNER LOGIC (Cars)
-    const potentialCars = [
-      { name: "Carla Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
-      { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
-    ];
-
-    let carPartners = potentialCars
-      .filter(p => acf[p.key])
-      .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
-
-    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`;
-    
-    if (carPartners.length === 0) {
-        carPartners = [{
-            name: "Find Rental Cars",
-            icon: Car,
-            color: "#ff5a00",
-            textColor: "white",
-            url: genericCarLink
-        }];
-    }
-
-    // Check for manual override, then hub link, then search fallback
-    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
-
-    return {
-      destinationName: hub.title?.rendered || searchTerm, 
-      destinationPageUrl: destinationUrl,
-      stayPartners,
-      flightPartners,
-      carPartners,
-      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
-      activities: mappedActivities,
-      // Removed Weather
-    };
-
-  } catch (error) {
-    console.error("WP Fetch Error:", error);
-    return { error: true, message: error.message }; 
+  setItem: (key, value) => {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
   }
 };
 
-// --- 3. UI COMPONENTS ---
-
-const Button = ({ children, onClick, variant = 'primary', className = '', type='button', disabled = false, fullWidth = false, style={} }) => {
-  const baseStyle = `px-6 py-3 rounded-lg font-bold transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2 ${fullWidth ? 'w-full' : ''} print:hidden`;
-  const variants = {
-    primary: `text-white hover:brightness-110`,
-    outline: `border-2 bg-transparent hover:bg-gray-50`,
-    ghost: `bg-transparent shadow-none hover:bg-gray-100 text-gray-600`,
-    action: `bg-[#ff8c00] text-white hover:brightness-110 shadow-lg` 
-  };
-  const mergedStyle = variant === 'primary' 
-    ? { backgroundColor: BRAND.primary, ...style } 
-    : variant === 'outline' ? { borderColor: BRAND.primary, color: BRAND.primary, ...style } : style;
-  return <button type={type} onClick={onClick} disabled={disabled} className={`${baseStyle} ${variants[variant]} ${className}`} style={mergedStyle}>{children}</button>;
+// --- CONFIGURATION ---
+const THEMES = {
+  'Cruise': {
+    bg: 'bg-blue-50',
+    text: 'text-teal-900',
+    border: 'border-[12px] border-teal-200 border-double',
+    decoration: (
+      <>
+        <div className="absolute top-4 right-4 text-teal-800/10 pointer-events-none"><Anchor size={140} /></div>
+        <div className="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-teal-100/40 to-transparent pointer-events-none"></div>
+      </>
+    ),
+    vibes: 'Tropical Beach'
+  },
+  'Tropical': {
+    bg: 'bg-orange-50',
+    text: 'text-orange-900',
+    border: 'border-[16px] border-orange-200 border-dashed',
+    decoration: (
+      <>
+        <div className="absolute -top-10 -right-10 text-yellow-400/20 pointer-events-none"><Sun size={240} /></div>
+        <div className="absolute bottom-4 right-4 text-orange-400/20 pointer-events-none"><Umbrella size={100} /></div>
+      </>
+    ),
+    vibes: 'Tropical Beach'
+  },
+  'Ski Trip': {
+    bg: 'bg-slate-50',
+    text: 'text-slate-800',
+    border: 'border-[10px] border-blue-100 rounded-none',
+    decoration: (
+      <>
+        <div className="absolute top-4 left-4 text-blue-200/50 pointer-events-none"><Snowflake size={80} /></div>
+        <div className="absolute bottom-8 right-8 text-blue-300/30 pointer-events-none"><Snowflake size={120} /></div>
+      </>
+    ),
+    vibes: 'Cold Adventure'
+  },
+  'City Break': {
+    bg: 'bg-zinc-100',
+    text: 'text-zinc-900',
+    border: 'border-[8px] border-zinc-800',
+    decoration: (
+      <>
+        <div className="absolute bottom-0 w-full h-40 opacity-10 pointer-events-none bg-gradient-to-t from-zinc-500 to-transparent"></div>
+        <div className="absolute top-4 right-4 text-zinc-300 pointer-events-none"><Building size={100} /></div>
+      </>
+    ),
+    vibes: 'City Exploring'
+  },
+  'Desert': {
+    bg: 'bg-amber-50',
+    text: 'text-amber-900',
+    border: 'border-[10px] border-amber-300 border-dotted',
+    decoration: (
+      <>
+        <div className="absolute top-0 left-0 w-full h-full opacity-5 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-amber-200 to-transparent pointer-events-none"></div>
+        <div className="absolute bottom-4 left-4 text-amber-300/40 pointer-events-none"><Sun size={80} /></div>
+      </>
+    ),
+    vibes: 'Airport Comfort'
+  }
 };
 
-const Card = ({ children, className = '' }) => (
-  <div className={`bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden ${className} print:shadow-none print:border-none`}>{children}</div>
-);
+const STICKERS = [
+  { id: 's1', content: '✈️', type: 'emoji' },
+  { id: 's2', content: '🌴', type: 'emoji' },
+  { id: 's4', content: '📸', type: 'emoji' },
+  { id: 's5', content: '👙', type: 'emoji' },
+  { id: 's6', content: '🕶️', type: 'emoji' },
+  { id: 's9', content: '🛳️', type: 'emoji' },
+  { id: 's10', content: '⚓', type: 'emoji' },
+  { id: 'h1', content: '🎄', type: 'emoji' },
+  { id: 'h2', content: '🎅', type: 'emoji' },
+  { id: 'h3', content: '🦃', type: 'emoji' },
+  { id: 'h4', content: '🎃', type: 'emoji' },
+  { id: 'h5', content: '🎆', type: 'emoji' },
+  { id: 't1', content: 'Passport Ready', type: 'text' },
+  { id: 't2', content: 'Vacay Mode', type: 'text' },
+  { id: 't3', content: 'Out of Office', type: 'text' },
+];
 
-// --- 4. SUB-VIEWS ---
+const SCENIC_PHOTOS = [
+  { id: 'p1', url: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&q=80', name: 'Swiss Alps' },
+  { id: 'p2', url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=80', name: 'Tropical Beach' },
+  { id: 'p3', url: 'https://images.unsplash.com/photo-1499856871940-a09627c6dcf6?w=400&q=80', name: 'Map & Camera' },
+  { id: 'p4', url: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=400&q=80', name: 'Blue Lake' },
+  { id: 'p5', url: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=400&q=80', name: 'Desert Road' },
+  { id: 'p6', url: 'https://images.unsplash.com/photo-1504198458649-3128b932f49e?w=400&q=80', name: 'Cozy Cabin' },
+  { id: 'p7', url: 'https://images.unsplash.com/photo-1512951670161-b3c66e49872d?w=400&q=80', name: 'Poolside' },
+  { id: 'p8', url: 'https://images.unsplash.com/photo-1473186578172-c141e6798cf4?w=400&q=80', name: 'Beach Walk' },
+];
 
-// Helper components for Wizard (Defined OUTSIDE WizardView to prevent focus loss)
-const WizardStep = ({ title, children }) => (
-  <div className="animate-fade-in">
-    <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
-    {children}
-  </div>
-);
+const TRAVEL_VIBES = {
+  'Airport Comfort': [
+    { id: 'v_air_1', name: 'Travel Hoodie', price: 45.00, img: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?w=300&q=80' },
+    { id: 'v_air_2', name: 'Compression Socks', price: 18.00, img: 'https://images.unsplash.com/photo-1582966772652-13b355bb9797?w=300&q=80' },
+    { id: 'v_air_3', name: 'Slip-on Sneakers', price: 60.00, img: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=300&q=80' },
+    { id: 'v_air_4', name: 'Neck Pillow', price: 25.00, img: 'https://plus.unsplash.com/premium_photo-1675807914389-72c67dc39d42?w=300&q=80' },
+  ],
+  'Tropical Beach': [
+    { id: 'v_beach_1', name: 'Linen Cover-up', price: 35.00, img: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=300&q=80' },
+    { id: 'v_beach_2', name: 'Quick-Dry Swimwear', price: 28.00, img: 'https://images.unsplash.com/photo-1566807810030-31cb3b27ea17?w=300&q=80' },
+    { id: 'v_beach_3', name: 'Waterproof Sandals', price: 30.00, img: 'https://images.unsplash.com/photo-1603487742131-4160d6986ba2?w=300&q=80' },
+    { id: 'v_beach_4', name: 'Polarized Shades', price: 15.99, img: 'https://images.unsplash.com/photo-1577803645773-f96470509666?w=300&q=80' },
+  ],
+  'City Exploring': [
+    { id: 'v_city_1', name: 'Anti-Theft Bag', price: 40.00, img: 'https://images.unsplash.com/photo-1590874103328-3607bac568a5?w=300&q=80' },
+    { id: 'v_city_2', name: 'Walking Shoes', price: 85.00, img: 'https://images.unsplash.com/photo-1512374382149-233c42b6a83b?w=300&q=80' },
+    { id: 'v_city_3', name: 'Rain Jacket', price: 55.00, img: 'https://images.unsplash.com/photo-1545593169-3d23b207eb87?w=300&q=80' },
+    { id: 'v_city_4', name: 'Power Bank', price: 29.99, img: 'https://images.unsplash.com/photo-1609592424367-172579dfd97d?w=300&q=80' },
+  ],
+  'Cold Adventure': [
+    { id: 'v_cold_1', name: 'Thermal Layer', price: 40.00, img: 'https://images.unsplash.com/photo-1578589318274-0498eb107e36?w=300&q=80' },
+    { id: 'v_cold_2', name: 'Wool Beanie', price: 22.00, img: 'https://images.unsplash.com/photo-1576871337632-b9aef4c17ab9?w=300&q=80' },
+    { id: 'v_cold_3', name: 'Puffer Jacket', price: 90.00, img: 'https://images.unsplash.com/photo-1544923246-77307dd654cb?w=300&q=80' },
+  ]
+};
 
-const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
-  <button 
-    onClick={onClick}
-    className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
-      selected 
-      ? `border-[${BRAND.primary}] bg-blue-50 text-[${BRAND.primary}] shadow-md` 
-      : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'
-    }`}
-    style={selected ? { borderColor: BRAND.primary, color: BRAND.primary } : {}}
-  >
-    <div className={`p-2 rounded-full ${selected ? 'bg-white' : 'bg-gray-100'}`}>
-      <Icon size={24} />
-    </div>
-    <span className="font-bold text-lg">{label}</span>
-  </button>
-);
+const ESSENTIALS_DATA = [
+  { id: 'e1', name: 'Univ. Adapter', price: 19.99, img: 'https://images.unsplash.com/photo-1590248232938-1630b427b34e?w=300&q=80' },
+  { id: 'e2', name: 'Power Bank', price: 29.99, img: 'https://images.unsplash.com/photo-1625723044792-44de16ccb4e9?w=300&q=80' },
+  { id: 'e3', name: 'Packing Cubes', price: 24.99, img: 'https://images.unsplash.com/photo-1565538420183-f39c27937397?w=300&q=80' },
+  { id: 'e4', name: 'Waterproof Pouch', price: 9.99, img: 'https://images.unsplash.com/photo-1623998021450-85c29c644e0d?w=300&q=80' },
+  { id: 'e6', name: 'Sunscreen', price: 14.50, img: 'https://images.unsplash.com/photo-1526947425960-945c6e72858f?w=300&q=80' },
+  { id: 'e7', name: 'First Aid Kit', price: 15.00, img: 'https://images.unsplash.com/photo-1632613713312-0440375dc113?w=300&q=80' },
+];
 
-// --- NEW WIZARD COMPONENT ---
-const WizardView = ({ setView }) => {
-  const [step, setStep] = useState(0);
-  const [wizardData, setWizardData] = useState({
-    destination: '',
-    vibe: '',
-    activityType: '',
-    stayType: '',
-    dates: ''
-  });
-  const [isSubmitted, setIsSubmitted] = useState(false);
+// --- COMPONENTS ---
 
-  const handleNext = () => setStep(step + 1);
-  const handleBack = () => step === 0 ? setView('search') : setStep(step - 1);
-  
-  const handleFinish = () => {
-    // Better Email Format
-    const subject = `🌴 New Trip Request: ${wizardData.destination || 'Custom Destination'}`;
-    const body = `Hi Cruisy Travel,\n\nI am interested in planning a new trip! Here are my details:\n\n` +
-      `------------------------------------------\n` +
-      `📍 DESTINATION:\n${wizardData.destination}\n\n` +
-      `✨ VIBE:\n${wizardData.vibe}\n\n` +
-      `🚣 ACTIVITIES:\n${wizardData.activityType}\n\n` +
-      `🏨 STAY PREFERENCE:\n${wizardData.stayType}\n\n` +
-      `📅 DATES:\n${wizardData.dates}\n` +
-      `------------------------------------------\n\n` +
-      `Please contact me with some options. Thanks!`;
-
-    window.location.href = `mailto:${CONCIERGE_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    setIsSubmitted(true);
-  };
-
-  const updateData = (key, value) => setWizardData(prev => ({...prev, [key]: value}));
-
-  // Success View after sending email
-  if (isSubmitted) {
-    return (
-      <div className="max-w-2xl mx-auto px-4 py-12 text-center animate-fade-in">
-        <Card className="p-12 shadow-2xl flex flex-col items-center justify-center min-h-[400px]">
-          <div className="w-20 h-20 bg-green-100 text-green-500 rounded-full flex items-center justify-center mb-6">
-            <Check size={40} />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4" style={{ fontFamily: BRAND.fontHeader }}>Request Sent!</h2>
-          <p className="text-lg text-gray-500 mb-8 max-w-md">
-            Thanks for sharing your travel dreams. Your email app should have opened a draft for you to send. We'll be in touch shortly!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center w-full">
-            <Button variant="outline" onClick={() => setIsSubmitted(false)}>Back to Request</Button>
-            <Button onClick={() => setView('search')}>Plan Another Trip</Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-12">
-      <div className="w-full bg-gray-200 h-2 rounded-full mb-8">
-        <div 
-          className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${((step + 1) / 5) * 100}%`, backgroundColor: BRAND.primary }}
-        ></div>
-      </div>
-
-      <Card className="p-8 shadow-2xl relative min-h-[400px] flex flex-col">
-        {step === 0 && (
-          <WizardStep title="Where do you want to go?">
-             <input 
-               type="text" 
-               placeholder="e.g. Bora Bora, Japan, The Moon..."
-               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
-               value={wizardData.destination}
-               onChange={(e) => updateData('destination', e.target.value)}
-             />
-             <p className="text-gray-400 mt-4 text-sm">Since we don't have a curated guide for this yet, tell us where you're dreaming of!</p>
-          </WizardStep>
-        )}
-
-        {step === 1 && (
-          <WizardStep title="What's the vibe?">
-            <div className="space-y-3">
-              <OptionButton icon={Palmtree} label="Chill & Relax" selected={wizardData.vibe === 'Chill'} onClick={() => updateData('vibe', 'Chill')} />
-              <OptionButton icon={Martini} label="Party & Nightlife" selected={wizardData.vibe === 'Party'} onClick={() => updateData('vibe', 'Party')} />
-              <OptionButton icon={Mountain} label="Adventure & Active" selected={wizardData.vibe === 'Adventure'} onClick={() => updateData('vibe', 'Adventure')} />
-              <OptionButton icon={Heart} label="Romantic Getaway" selected={wizardData.vibe === 'Romantic'} onClick={() => updateData('vibe', 'Romantic')} />
-            </div>
-          </WizardStep>
-        )}
-
-        {step === 2 && (
-          <WizardStep title="What do you want to do?">
-             <textarea 
-               className="w-full border-2 border-gray-100 rounded-xl p-4 h-32 focus:border-[#34a4b8] outline-none resize-none"
-               placeholder="e.g. Snorkeling, hiking, food tours, museum hopping..."
-               value={wizardData.activityType}
-               onChange={(e) => updateData('activityType', e.target.value)}
-             ></textarea>
-          </WizardStep>
-        )}
-
-        {step === 3 && (
-           <WizardStep title="Preferred Stay Style">
-             <div className="space-y-3">
-               <OptionButton icon={Hotel} label="Hotel / Resort" selected={wizardData.stayType === 'Hotel'} onClick={() => updateData('stayType', 'Hotel')} />
-               <OptionButton icon={Home} label="Private Villa / Rental" selected={wizardData.stayType === 'Rental'} onClick={() => updateData('stayType', 'Rental')} />
-               <OptionButton icon={Ship} label="Cruise Ship" selected={wizardData.stayType === 'Cruise'} onClick={() => updateData('stayType', 'Cruise')} />
-             </div>
-           </WizardStep>
-        )}
-
-        {step === 4 && (
-          <WizardStep title="When are you going?">
-            <input 
-               type="text" 
-               placeholder="e.g. Next Summer, Dec 2025..."
-               className="w-full text-xl border-b-2 border-gray-200 py-3 focus:border-[#34a4b8] outline-none"
-               value={wizardData.dates}
-               onChange={(e) => updateData('dates', e.target.value)}
-             />
-          </WizardStep>
-        )}
-
-        <div className="mt-auto flex justify-between pt-8">
-           <button onClick={handleBack} className="text-gray-400 font-bold hover:text-gray-600">Back</button>
-           {step < 4 ? (
-             <Button onClick={handleNext} disabled={step === 0 && !wizardData.destination}>Next <ChevronRight size={18}/></Button>
-           ) : (
-             <Button onClick={handleFinish}>Request Quote</Button>
-           )}
+const Header = ({ view, setView, myBagCount }) => (
+  <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md shadow-sm border-b border-gray-100 transition-all">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="flex justify-between items-center h-20">
+        
+        <div className="flex items-center cursor-pointer group" onClick={() => setView('home')}>
+          <img src={BRAND_LOGO} alt="Cruisy Travel" className="h-10 w-auto mr-2" />
+          <span className="sr-only">Cruisy Travel Trip Kit</span>
         </div>
-      </Card>
+        
+        <div className="flex items-center space-x-2 md:space-x-4">
+          <button onClick={() => setView('planner')} className={`hidden md:flex px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${view === 'planner' ? 'bg-gray-100 text-brand' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>Essentials</button>
+          <button onClick={() => setView('styleboard')} className={`hidden md:flex px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${view === 'styleboard' ? 'bg-gray-100 text-brand' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-50'}`}>Style Board</button>
+          <button onClick={() => setView('mybag')} className="flex items-center bg-gray-900 text-white px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-teal-600 transition-all hover:-translate-y-0.5 active:scale-95">
+            <ShoppingBag size={18} className="mr-2" />
+            <span className="hidden sm:inline">Kit</span>
+            {myBagCount > 0 && <span className="ml-2 bg-white text-gray-900 text-xs py-0.5 px-2 rounded-md font-extrabold">{myBagCount}</span>}
+          </button>
+        </div>
+      </div>
     </div>
-  );
-};
+  </nav>
+);
 
-const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) => (
-  <div className="max-w-3xl mx-auto px-4 py-12 animate-fade-in print:hidden">
-    <div className="text-center mb-10">
-      <h1 className="text-4xl md:text-5xl mb-4 text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>
-        Dream it. Plan it. <span style={{ color: BRAND.primary }}>Book it.</span>
+const Hero = ({ setView }) => (
+  <div className="relative overflow-hidden bg-white pt-24 pb-12">
+    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-cyan-50 rounded-full blur-3xl opacity-50 -translate-y-1/2 translate-x-1/4"></div>
+    <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-orange-50 rounded-full blur-3xl opacity-50 translate-y-1/4 -translate-x-1/4"></div>
+
+    <div className="relative z-10 max-w-5xl mx-auto text-center px-4">
+      <div className="inline-flex items-center bg-white border border-gray-100 rounded-full px-5 py-2 mb-8 shadow-sm">
+         <Plane size={14} className="text-teal-600 mr-2" />
+         <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Universal Packing Tool</span>
+      </div>
+      
+      <h1 className="text-6xl md:text-8xl font-header text-gray-900 mb-8 leading-tight tracking-tight">
+        Style Your <br/>
+        <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-500 to-cyan-400">Next Getaway.</span>
       </h1>
-      <p className="text-lg text-gray-500 font-semibold max-w-2xl mx-auto mt-4">
-        The easiest way to plan your getaway. Find curated <span className="text-[#34a4b8]">activities</span> and book <span className="text-[#34a4b8]">hotels</span>, <span className="text-[#34a4b8]">flights</span>, <span className="text-[#34a4b8]">rental cars</span>, and trip essentials instantly.
+      
+      <p className="text-xl text-gray-500 font-light max-w-2xl mx-auto mb-12 leading-relaxed">
+        Don't just pack—curate. Build a visual style board of outfits, essentials, and travel gear for your upcoming voyage.
       </p>
-    </div>
-    <Card className="p-6 md:p-8 relative z-10 shadow-2xl">
-      <form onSubmit={handleSearch} className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-            <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
-          </label>
-          <div className="relative">
-            {/* DROPDOWN SELECTOR */}
-            <div className="relative w-full">
-              <select 
-                required 
-                className="w-full pl-4 pr-16 text-base md:text-xl border-2 border-gray-100 rounded-lg py-4 focus:border-[#34a4b8] outline-none font-medium transition-colors appearance-none bg-white cursor-pointer"
-                value={destinationSearch} 
-                onChange={(e) => setDestinationSearch(e.target.value)}
-              >
-                <option value="" disabled>Destinations</option>
-                {AVAILABLE_DESTINATIONS.map(dest => (
-                  <option key={dest} value={dest}>{dest}</option>
-                ))}
-              </select>
-              <div className="absolute right-16 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-400">
-                <ChevronDown size={20} />
-              </div>
-            </div>
+      
+      <div className="flex flex-col sm:flex-row justify-center gap-4 mb-20">
+        <button onClick={() => setView('styleboard')} className="flex items-center justify-center px-10 py-5 bg-teal-600 text-white rounded-2xl font-bold text-lg shadow-xl shadow-teal-200 hover:bg-teal-700 hover:scale-105 transition-all">
+          <Camera className="mr-2" /> Create Board
+        </button>
+        <button onClick={() => setView('planner')} className="flex items-center justify-center px-10 py-5 bg-white text-gray-700 border-2 border-gray-100 rounded-2xl font-bold text-lg hover:border-gray-300 hover:bg-gray-50 transition-all">
+          <CheckSquare className="mr-2" /> View Essentials
+        </button>
+      </div>
 
-            <button 
-              type="submit" 
-              disabled={!destinationSearch}
-              className="absolute right-2 top-2 bottom-2 bg-white text-[#34a4b8] px-4 rounded-md hover:bg-gray-50 transition-colors disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed border-l border-gray-100"
-            >
-              <Search size={24} />
-            </button>
-          </div>
+      <div className="border-t border-gray-100 pt-12">
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-8">Inspiration Boards</p>
+        <div className="flex justify-center gap-6 overflow-hidden opacity-80 hover:opacity-100 transition-opacity">
+           <div className="w-48 h-64 bg-orange-50 rounded-xl border-4 border-orange-100 p-4 transform -rotate-3 hover:rotate-0 transition-transform duration-500 shadow-md">
+              <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300')] bg-cover rounded-lg opacity-80"></div>
+           </div>
+           <div className="w-48 h-64 bg-blue-50 rounded-xl border-4 border-blue-100 p-4 transform rotate-2 hover:rotate-0 transition-transform duration-500 shadow-md z-10">
+              <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=300')] bg-cover rounded-lg opacity-80"></div>
+           </div>
+           <div className="w-48 h-64 bg-gray-100 rounded-xl border-4 border-gray-200 p-4 transform -rotate-1 hover:rotate-0 transition-transform duration-500 shadow-md">
+              <div className="h-full w-full bg-[url('https://images.unsplash.com/photo-1499856871940-a09627c6dcf6?auto=format&fit=crop&w=300')] bg-cover rounded-lg opacity-80"></div>
+           </div>
         </div>
-      </form>
-    </Card>
-
-    {/* NEW SECTION: "How it works" to fill the vertical space */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-center opacity-80">
-       <div className="p-4">
-          <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
-            <MapPin size={24} />
-          </div>
-          <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
-       </div>
-       <div className="p-4">
-          <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
-            <Ticket size={24} />
-          </div>
-          <h3 className="font-bold text-gray-700">2. Select Activities</h3>
-          <p className="text-sm text-gray-500">Add top-rated excursions to your trip checklist.</p>
-       </div>
-       <div className="p-4">
-          <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
-            <CheckSquare size={24} />
-          </div>
-          <h3 className="font-bold text-gray-700">3. Book & Go</h3>
-          <p className="text-sm text-gray-500">Use our direct links to book flights, stays, and fun.</p>
-       </div>
+      </div>
     </div>
-
   </div>
 );
 
-const LoadingView = ({ destinationSearch }) => (
-  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
-    <Loader2 size={48} className="animate-spin text-[#34a4b8] mb-6" />
-    <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Scouting {destinationSearch}...</h2>
-  </div>
-);
-
-const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinerary, addToItinerary }) => {
-  if (!searchResults) return null;
-  return (
-    <div className="max-w-6xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-        <div>
-          <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
-          <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-        </div>
-      </div>
-      <div className="flex flex-col lg:flex-row gap-8">
-        <div className="flex-1 space-y-6">
-          <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2"><Ticket size={18}/> Curated Experiences</h3>
-          <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
-            {searchResults.activities.length === 0 ? (
-               <div className="col-span-2 text-center py-10 bg-gray-50 rounded-xl border border-gray-200">
-                 <p className="text-gray-500">No activities loaded for this location yet.</p>
-               </div>
-            ) : searchResults.activities.map((activity) => {
-              const isAdded = itinerary.some(i => i.id === activity.id);
-              return (
-                 <Card key={activity.id} className="flex flex-col hover:shadow-xl transition-all group h-full">
-                   <div className="h-48 relative overflow-hidden cursor-pointer" onClick={() => { setSelectedActivity(activity); setView('detail'); }}>
-                     <img src={activity.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt={activity.title} />
-                     <div className="absolute top-2 right-2 bg-white/90 backdrop-blur text-xs font-bold px-2 py-1 rounded shadow-sm">${activity.price}</div>
-                   </div>
-                   <div className="p-5 flex-1 flex flex-col justify-between">
-                     <div className="cursor-pointer" onClick={() => { setSelectedActivity(activity); setView('detail'); }}>
-                       <div className="text-xs font-bold text-[#34a4b8] uppercase mb-1">{activity.category} • {activity.duration}</div>
-                       <h3 className="text-lg font-bold text-gray-800 mb-2 leading-tight">{activity.title}</h3>
-                       <div className="text-gray-500 text-sm line-clamp-2 mb-4" dangerouslySetInnerHTML={{ __html: activity.excerpt }}></div>
-                     </div>
-                     <div className="flex gap-2 mt-auto">
-                        <Button variant="outline" className="flex-1 text-sm py-2" onClick={() => { setSelectedActivity(activity); setView('detail'); }}>Details</Button>
-                        <Button variant={isAdded ? "ghost" : "primary"} className={`flex-1 text-sm py-2 ${isAdded ? 'bg-green-50 text-green-600' : ''}`} onClick={() => isAdded ? setView('itinerary') : addToItinerary(activity)}>{isAdded ? "Added" : "Add"}</Button>
-                     </div>
-                   </div>
-                 </Card>
-              );
-            })}
-          </div>
-          <div onClick={() => window.open(searchResults.destinationPageUrl, '_blank')} className="bg-[#34a4b8]/5 border-2 border-dashed border-[#34a4b8]/30 rounded-xl p-6 text-center cursor-pointer hover:bg-[#34a4b8]/10 transition-colors group">
-             <h3 className="text-lg font-bold text-gray-800 mb-1">See More {searchResults.destinationName} Activities</h3>
-             <span className="inline-flex items-center gap-2 font-bold text-[#34a4b8] text-sm">Browse Full Catalog <ArrowRight size={14}/></span>
-          </div>
-          <div className="pt-6 border-t border-gray-100">
-             <h3 className="text-lg font-bold text-[#34a4b8] uppercase tracking-wide flex items-center gap-2 mb-4"><ShoppingBag size={18}/> Travel Essentials</h3>
-             <div className="grid grid-cols-2 gap-4">
-                {GLOBAL_GEAR.map((p, i) => (
-                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-[#ff8c00] hover:shadow-md hover:bg-orange-50 transition-all" onClick={()=>window.open(p.affiliateLink)}>
-                    <img src={p.image} className="w-12 h-12 rounded bg-gray-100 object-cover" alt={p.name} />
-                    <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        </div>
-        <div className="lg:w-80 space-y-6">
-          {/* HOTELS CARD */}
-          {searchResults.stayPartners.length > 0 && (
-            <Card className="p-5 bg-gradient-to-br from-blue-50 to-white border-blue-100">
-               <div className="flex items-center gap-2 mb-3 text-blue-900 font-bold"><Hotel size={20}/> Where to Stay</div>
-               <p className="text-sm text-blue-700/70 mb-4">Compare prices for hotels and rentals in {searchResults.destinationName}.</p>
-               <div className="space-y-2">
-                 {searchResults.stayPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))}
-               </div>
-            </Card>
-          )}
-
-          {/* FLIGHTS CARD */}
-          <Card className="p-5 bg-gradient-to-br from-sky-50 to-white border-sky-100">
-             <div className="flex items-center gap-2 mb-3 text-sky-900 font-bold"><Plane size={20}/> Flights to {searchResults.destinationName}</div>
-             <div className="space-y-2">
-               {/* Check for specific partners, otherwise use generic link */}
-               {searchResults.flightPartners && searchResults.flightPartners.length > 0 ? (
-                 searchResults.flightPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.flightLink, '_blank')} className="bg-sky-500 hover:bg-sky-600 text-white shadow-none">Check Flights <ExternalLink size={14}/></Button>
-               )}
-             </div>
-          </Card>
-
-          {/* CARS CARD */}
-          <Card className="p-5 bg-gradient-to-br from-orange-50 to-white border-orange-100">
-             <div className="flex items-center gap-2 mb-3 text-orange-900 font-bold"><Car size={20}/> Need a Ride?</div>
-             <div className="space-y-2">
-                {/* Check for specific partners, otherwise use generic link */}
-                {searchResults.carPartners && searchResults.carPartners.length > 0 ? (
-                 searchResults.carPartners.map((partner, idx) => (
-                   <Button 
-                     key={idx} 
-                     fullWidth 
-                     onClick={() => window.open(partner.url, '_blank')} 
-                     style={{ backgroundColor: partner.color, color: partner.textColor }}
-                     className="shadow-sm border-none justify-between"
-                   >
-                     <span className="flex items-center gap-2"><partner.icon size={16}/> {partner.name}</span><ExternalLink size={14} className="opacity-70"/>
-                   </Button>
-                 ))
-               ) : (
-                 <Button fullWidth onClick={() => window.open(searchResults.carLink, '_blank')} className="bg-orange-500 hover:bg-orange-600 text-white shadow-none">Find Rental Cars <ExternalLink size={14}/></Button>
-               )}
-             </div>
-          </Card>
-
-          {/* TRAVEL INSURANCE (Always Visible) */}
-          <Card className="p-5 bg-gradient-to-br from-slate-50 to-white border-slate-200">
-             <div className="flex items-center gap-2 mb-3 text-slate-900 font-bold"><ShieldCheck size={20}/> Travel Insurance</div>
-             <p className="text-sm text-slate-600 mb-4">Don't forget to protect your trip. Recommended for all international travel.</p>
-             <Button 
-               fullWidth 
-               onClick={() => window.open('https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', '_blank')} 
-               className="bg-[#D4002D] hover:bg-[#b00025] text-white shadow-none justify-between"
-             >
-               <span className="flex items-center gap-2">World Nomads</span><ExternalLink size={14} className="opacity-70"/>
-             </Button>
-          </Card>
-
-          {/* SIDEBAR DISCLAIMER */}
-          <div className="text-xs text-center text-gray-400 mt-4 px-2">
-            <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
-            We may earn a small commission if you book through our links, at no extra cost to you.
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFromItinerary, handleEmailItinerary, destinationSearch, searchResults }) => {
-  const totalCost = itinerary.reduce((sum, item) => sum + item.price, 0);
-  const bookedCount = itinerary.filter(i => i.isBooked).length + essentials.filter(i => i.isBooked).length;
-  const totalItems = itinerary.length + essentials.length;
-  const progress = totalItems === 0 ? 0 : (bookedCount / totalItems) * 100;
+const StyleBoard = ({ addToBag, setView }) => {
+  // SAFETY CHECK: Keys updated to _v7 to force fresh start
+  const [currentTheme, setCurrentTheme] = useState(() => safeLocalStorage.getItem('cruisyTheme_v7', 'Cruise'));
+  const [boardItems, setBoardItems] = useState(() => safeLocalStorage.getItem('cruisyBoardItems_v7', []));
+  const [activeTab, setActiveTab] = useState('Vibes');
   
-  const displayDestination = destinationSearch || "Your Trip";
-
-  return (
-    <div className="max-w-4xl mx-auto px-4 py-8 animate-fade-in">
-      <div className="hidden print:block mb-8 text-center border-b border-gray-200 pb-6">
-         <div className="flex justify-center mb-4"><img src={BRAND.logoUrl} alt="Cruisy Travel" className="w-24 h-24 object-cover rounded-full border-2 border-[#34a4b8]" /></div>
-         <h1 className="text-3xl font-bold text-gray-800 mb-2">Your Cruisy Travel Itinerary</h1>
-         <p className="text-gray-500 italic">Prepared for your upcoming adventure to {displayDestination}.</p>
-         <div className="mt-4 text-sm text-gray-600 max-w-lg mx-auto">"We are thrilled to help you plan your getaway. Below is your checklist of selected activities and essentials. Safe travels!"</div>
-      </div>
-      
-      {/* Smart Back Button */}
-      <button 
-        onClick={() => searchResults ? setView('list') : setView('search')} 
-        className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 print:hidden flex items-center gap-1"
-      >
-        ← Back to {searchResults ? 'Activities' : 'Search'}
-      </button>
-
-      <div className="flex flex-col md:flex-row gap-8">
-        <div className="flex-1 space-y-8">
-          <div className="print:hidden">
-            <h2 className="text-3xl text-gray-800 mb-2" style={{ fontFamily: BRAND.fontHeader }}>Trip Checklist: <span style={{ color: BRAND.primary }}>{displayDestination}</span></h2>
-            <div className="w-full bg-gray-200 rounded-full h-2.5 mb-4"><div className="bg-[#34a4b8] h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div></div>
-            <p className="text-sm text-gray-500">{bookedCount} of {totalItems} items booked</p>
-          </div>
-          <div>
-             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><Ticket size={16}/> Planned Activities</h3>
-             {itinerary.length === 0 ? (
-                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 print:hidden"><p className="text-gray-500 mb-2">No activities added yet.</p><Button variant="ghost" onClick={() => setView('search')} className="text-sm h-8">Browse Activities</Button></div>
-             ) : (
-               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
-                 {itinerary.map((item) => (
-                   <div key={item.id} className={`p-4 border-b border-gray-100 flex items-center justify-between transition-colors ${item.isBooked ? 'bg-green-50/50' : 'bg-white'}`}>
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => toggleBooked(item.id, 'activity')} className={`${item.isBooked ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'} flex-shrink-0 print:hidden`}>{item.isBooked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
-                        <img src={item.image} alt={item.title} className="w-16 h-16 rounded-lg object-cover shadow-sm hidden sm:block" />
-                        <div>
-                          <div className={`font-bold ${item.isBooked ? 'text-green-700' : 'text-gray-800'}`}>{item.title}</div>
-                          <div className="text-xs text-gray-500">${item.price} • {item.duration}</div>
-                          <div className="hidden print:block text-xs text-gray-400 mt-1">{item.bookingUrl}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 print:hidden">
-                         {!item.isBooked && (
-                           // SAFE CHECK: DISABLE IF URL IS MISSING OR HASH
-                           <Button 
-                             variant="action" 
-                             className="text-xs px-3 h-8" 
-                             disabled={!item.bookingUrl || item.bookingUrl === '#'}
-                             onClick={() => item.bookingUrl && window.open(item.bookingUrl, '_blank')}
-                           >
-                             {(!item.bookingUrl || item.bookingUrl === '#') ? 'Coming Soon' : 'Book Now'}
-                           </Button>
-                         )}
-                         <button onClick={() => removeFromItinerary(item.id)} className="text-gray-400 hover:text-red-400 p-2"><Trash2 size={16}/></button>
-                      </div>
-                   </div>
-                 ))}
-               </div>
-             )}
-          </div>
-          <div>
-             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><CheckSquare size={16}/> Trip Essentials</h3>
-             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden print:border-none print:shadow-none">
-               {essentials.map((item) => {
-                 const IconComponent = ICON_MAP[item.id] || Info; 
-                 return (
-                   <div key={item.id} className={`p-4 border-b border-gray-100 flex items-center justify-between transition-colors ${item.isBooked ? 'bg-green-50/50' : 'bg-white'}`}>
-                      <div className="flex items-center gap-4">
-                        <button onClick={() => toggleBooked(item.id, 'essential')} className={`${item.isBooked ? 'text-green-500' : 'text-gray-300 hover:text-gray-400'} print:hidden`}>{item.isBooked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
-                        <div>
-                          <div className={`font-bold ${item.isBooked ? 'text-green-700' : 'text-gray-800'}`}>{item.title}</div>
-                          
-                          {/* Logic for SubLinks vs Single Link */}
-                          {item.subLinks ? (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {item.subLinks.map((link, idx) => (
-                                <a key={idx} href={link.url} target="_blank" className="text-xs bg-gray-100 hover:bg-[#34a4b8] hover:text-white text-gray-600 px-2 py-1 rounded transition-colors flex items-center gap-1 print:hidden">
-                                  {link.name} <ExternalLink size={10}/>
-                                </a>
-                              ))}
-                              {/* Print view for sublinks */}
-                              <div className="hidden print:block text-xs text-gray-400 mt-1">
-                                {item.subLinks.map(l => l.name + ": " + l.url).join(', ')}
-                              </div>
-                            </div>
-                          ) : (
-                            <>
-                              <a href={item.link} target="_blank" className="text-xs text-[#34a4b8] hover:underline flex items-center gap-1 print:hidden">{item.cta} <ExternalLink size={10}/></a>
-                              <div className="hidden print:block text-xs text-gray-400 mt-1">{item.link}</div>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
-                   </div>
-                 )
-               })}
-             </div>
-          </div>
-          <div className="print:hidden">
-             <h3 className="text-sm font-bold text-[#34a4b8] uppercase tracking-wide mb-3 flex items-center gap-2"><ShoppingBag size={16}/> Don't Forget to Pack</h3>
-             <div className="grid grid-cols-2 gap-4">
-                {GLOBAL_GEAR.map((p, i) => (
-                  <div key={i} className="bg-white p-3 rounded-lg shadow-sm flex items-center gap-3 cursor-pointer border border-[#ff8c00] hover:shadow-md hover:bg-orange-50 transition-all" onClick={()=>window.open(p.affiliateLink)}>
-                    <img src={p.image} className="w-10 h-10 rounded bg-gray-100 object-cover" alt={p.name} />
-                    <div><div className="text-sm font-bold text-gray-700 leading-tight">{p.name}</div><div className="text-xs text-gray-400 mt-1 flex items-center gap-1">Check Amazon <ExternalLink size={10}/></div></div>
-                  </div>
-                ))}
-             </div>
-          </div>
-        </div>
-        <div className="md:w-80 print:hidden">
-           <Card className="p-6 sticky top-24">
-             <h3 className="font-bold text-gray-800 mb-4 text-lg">Estimated Costs</h3>
-             <div className="space-y-2 mb-6 text-sm text-gray-600">
-                <div className="flex justify-between"><span>Activities</span><span>${totalCost}</span></div>
-                <div className="flex justify-between"><span>Hotels/Flight</span><span>Variable</span></div>
-                <div className="flex justify-between pt-2 border-t border-gray-100 font-bold text-gray-800 text-lg"><span>Total Activity Cost</span><span>${totalCost}</span></div>
-             </div>
-             <Button fullWidth onClick={handleEmailItinerary} className="flex gap-2 items-center justify-center"><Mail size={16} /> Email Checklist</Button>
-             <Button variant="ghost" fullWidth onClick={() => window.print()} className="mt-2 flex gap-2 items-center justify-center text-xs"><Printer size={14} /> Print Checklist</Button>
-             
-             {/* CHECKLIST VIEW DISCLAIMER */}
-             <div className="text-xs text-center text-gray-400 mt-4 px-2">
-                <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
-                We may earn a small commission if you book through our links, at no extra cost to you.
-             </div>
-           </Card>
-        </div>
-      </div>
-      <div className="hidden print:block mt-12 pt-8 border-t border-gray-200 text-center">
-         <p className="text-gray-600 mb-2">Warmly,</p>
-         <p className="font-bold text-xl text-[#34a4b8]" style={{ fontFamily: BRAND.fontHeader }}>The Cruisy Travel Team</p>
-         <p className="text-xs text-gray-400 mt-4">Visit us at cruisytravel.com</p>
-      </div>
-    </div>
-  );
-};
-
-const DetailView = ({ selectedActivity, itinerary, setView, addToItinerary, searchResults }) => {
-  if (!selectedActivity) return null;
-  const isAdded = itinerary.some(i => i.id === selectedActivity.id);
-  
-  // Safe logic to check if bookable
-  const isBookable = selectedActivity.bookingUrl && selectedActivity.bookingUrl !== "#";
-
-  return (
-    <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in pb-24 print:hidden">
-      
-      {/* Smart Back Button */}
-      <button 
-        onClick={() => searchResults ? setView('list') : setView('search')} 
-        className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-6 flex items-center gap-1"
-      >
-        ← Back to {searchResults ? 'List' : 'Search'}
-      </button>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-         <div>
-           <div className="rounded-xl overflow-hidden shadow-lg mb-6"><img src={selectedActivity.image} className="w-full h-64 object-cover" alt={selectedActivity.title} /></div>
-           <h1 className="text-3xl md:text-4xl text-gray-900 leading-tight mb-4" style={{ fontFamily: BRAND.fontHeader }}>{selectedActivity.title}</h1>
-           <div className="prose text-gray-600" dangerouslySetInnerHTML={{ __html: selectedActivity.description }}></div>
-         </div>
-         <div>
-            <Card className="p-6 sticky top-24 border-t-4" style={{ borderColor: BRAND.primary }}>
-               <div className="flex justify-between items-center mb-6">
-                  <span className="text-gray-500 font-bold uppercase text-sm">Price per person</span>
-                  <span className="text-4xl font-bold text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>${selectedActivity.price}</span>
-               </div>
-               <div className="space-y-3">
-                 <Button fullWidth variant={isAdded ? "ghost" : "primary"} onClick={() => isAdded ? setView('itinerary') : addToItinerary(selectedActivity)} className={isAdded ? "bg-green-50 text-green-600 border border-green-200" : ""}>{isAdded ? "View in Trip" : "Add to Trip"}</Button>
-                 
-                 {/* SAFE BUTTON LOGIC */}
-                 <Button 
-                   fullWidth 
-                   variant="action" 
-                   disabled={!isBookable}
-                   onClick={() => isBookable && window.open(selectedActivity.bookingUrl, '_blank')}
-                 >
-                    {isBookable ? "Book Now (FareHarbor)" : "Coming Soon"} <ExternalLink size={16}/>
-                 </Button>
-
-                 <div className="text-xs text-center text-gray-400 mt-2 px-2"><span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span> We may earn a small commission if you book through our links, at no extra cost to you.</div>
-               </div>
-            </Card>
-         </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Main App Component ---
-export default function App() {
-  // --- LEVEL 1 PERSISTENCE: LOCAL STORAGE INIT ---
-  const [view, setView] = useState('search'); 
-  const [destinationSearch, setDestinationSearch] = useState(''); 
-  const [searchResults, setSearchResults] = useState(null); 
-  const [selectedActivity, setSelectedActivity] = useState(null); 
-  
-  // State 1: Itinerary (Trip Items)
-  const [itinerary, setItinerary] = useState(() => {
-    try {
-        const saved = localStorage.getItem("cruisy_itinerary");
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
-
-  // State 2: Essentials (Hotel/Flight/Car Links)
-  const [essentials, setEssentials] = useState(() => {
-    try {
-        const saved = localStorage.getItem("cruisy_essentials");
-        return saved ? JSON.parse(saved) : [];
-    } catch (e) { return []; }
-  });
-
-  // --- PERSISTENCE: AUTO-SAVE ---
   useEffect(() => {
-    localStorage.setItem("cruisy_itinerary", JSON.stringify(itinerary));
-  }, [itinerary]);
+    safeLocalStorage.setItem('cruisyTheme_v7', currentTheme);
+    safeLocalStorage.setItem('cruisyBoardItems_v7', boardItems);
+  }, [currentTheme, boardItems]);
 
-  useEffect(() => {
-    localStorage.setItem("cruisy_essentials", JSON.stringify(essentials));
-  }, [essentials]);
+  const theme = THEMES[currentTheme] || THEMES['Cruise'];
+  const vibeItems = TRAVEL_VIBES[theme.vibes] || TRAVEL_VIBES['Airport Comfort'];
   
-  // --- REMOVED AUTO RESIZE LOGIC TO FIX OVERLAY/SCROLLING ISSUES ---
-  // The iframe will now handle scrolling internally within the fixed height container.
+  // Ensure boardItems is always an array
+  const validBoardItems = Array.isArray(boardItems) ? boardItems : [];
 
-  // Inject Fonts
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Russo+One&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-    return () => {
-      document.head.removeChild(link);
+  const addToBoard = (item, type = 'product') => {
+    const randomRotation = Math.floor(Math.random() * 6) - 3; 
+    const initialSize = type === 'sticker' ? 'large' : 'small'; 
+    const newItem = { 
+      ...item, 
+      boardId: Date.now() + Math.random(), 
+      type, 
+      size: initialSize,
+      rotation: randomRotation 
     };
-  }, []);
-
-  // Handlers
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    setView('loading');
-    
-    // Switch to Wizard if "Somewhere Else" is selected
-    if (destinationSearch === "Somewhere Else") {
-      setView('wizard');
-      return;
-    }
-    
-    // CALL THE REAL API
-    const results = await fetchRealActivities(destinationSearch);
-    
-    // BETTER ERROR HANDLING
-    if (!results || results.error) {
-        alert("Connection Error: Check CORS settings.");
-        setView('search');
-        return;
-    }
-
-    if (results.activities.length === 0) {
-        alert(`No activities found for "${destinationSearch}" (Search Term: "${destinationSearch.split(',')[0].trim()}"). \n\nPlease create an Itinerary in WordPress with this location name in the Title or Description.`);
-        setView('search');
-        return;
-    }
-
-    setSearchResults(results);
-    
-    // Initialize Essentials Checklist based on destination
-    
-    // Initialize Essentials Checklist based on destination
-    const flightEssentials = results.flightPartners.length > 0 
-        ? { 
-            id: 'flight', 
-            title: `Flights to ${results.destinationName}`, 
-            isBooked: false, 
-            subLinks: results.flightPartners 
-          }
-        : (results.flightLink ? { id: 'flight', title: `Flights to ${results.destinationName}`, isBooked: false, link: results.flightLink, cta: 'Check Prices' } : null);
-
-    const hotelEssential = results.stayPartners.length > 0 
-        ? { 
-            id: 'hotel', 
-            title: `Stay in ${results.destinationName}`, 
-            isBooked: false, 
-            subLinks: results.stayPartners 
-          } 
-        : null;
-
-    const carEssential = results.carPartners.length > 0
-        ? { id: 'car', title: `Rental Car`, isBooked: false, subLinks: results.carPartners }
-        : null;
-
-    setEssentials([
-      ...(flightEssentials ? [flightEssentials] : []),
-      ...(hotelEssential ? [hotelEssential] : []),
-      ...(carEssential ? [carEssential] : []),
-      // Removed Dining
-      { id: 'insurance', title: 'Travel Insurance (World Nomads)', isBooked: false, link: 'https://www.anrdoezrs.net/click-101439364-15417474?url=https%3A%2F%2Fwww.worldnomads.com%2F', cta: 'Get Quote' }
-    ]);
-    
-    setView('list'); 
+    setBoardItems([...validBoardItems, newItem]);
+    if (type === 'product') addToBag(item);
   };
 
-  const addToItinerary = (activity) => {
-    if (!itinerary.find(i => i.id === activity.id)) {
-      setItinerary([...itinerary, { ...activity, isBooked: false }]);
-    }
-  };
+  const removeFromBoard = (boardId) => setBoardItems(validBoardItems.filter(i => i.boardId !== boardId));
 
-  const removeFromItinerary = (id) => {
-    setItinerary(itinerary.filter(i => i.id !== id));
-  };
-
-  const toggleBooked = (id, type) => {
-    if (type === 'activity') {
-      setItinerary(itinerary.map(i => i.id === id ? { ...i, isBooked: !i.isBooked } : i));
-    } else {
-      setEssentials(essentials.map(i => i.id === id ? { ...i, isBooked: !i.isBooked } : i));
-    }
-  };
-
-  const handleEmailItinerary = () => {
-    const subject = `Your ${destinationSearch} Adventure with Cruisy Travel`;
-    let body = `Hi there,\n\nWe are so excited for your upcoming trip to ${destinationSearch}! Here is the custom itinerary plan you built with us.\n\n`;
-    body += `========================================\nYOUR ACTIVITY CHECKLIST\n========================================\n\n`;
-    itinerary.forEach((item, index) => {
-      body += `${index + 1}. ${item.title} ($${item.price})\n   👉 Book Here: ${item.bookingUrl}\n\n`;
-    });
-    body += `========================================\nTRIP ESSENTIALS\n========================================\n\n`;
-    essentials.forEach((item) => {
-      body += `- ${item.title}\n`;
-      if (item.subLinks) {
-         item.subLinks.forEach(sub => {
-             body += `  ${sub.name}: ${sub.url}\n`;
-         });
-      } else {
-         body += `  Link: ${item.link}\n`;
+  const toggleSize = (boardId) => {
+    setBoardItems(validBoardItems.map(item => {
+      // Prevents resizing for stickers
+      if (item.boardId === boardId && item.type !== 'sticker') {
+        const nextSize = item.size === 'small' ? 'medium' : item.size === 'medium' ? 'large' : 'small';
+        return { ...item, size: nextSize };
       }
-    });
-    body += `\nWarmly,\nThe Cruisy Travel Team`;
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      return item;
+    }));
+  };
+
+  const moveItem = (index, direction) => {
+    const newItems = [...validBoardItems];
+    if (direction === 'left' && index > 0) {
+      [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+    } else if (direction === 'right' && index < newItems.length - 1) {
+      [newItems[index + 1], newItems[index]] = [newItems[index], newItems[index + 1]];
+    }
+    setBoardItems(newItems);
+  };
+
+  const shuffleLayout = () => {
+    const shuffled = [...validBoardItems].sort(() => Math.random() - 0.5);
+    const reRotated = shuffled.map(item => ({...item, rotation: Math.floor(Math.random() * 10) - 5}));
+    setBoardItems(reRotated);
+  };
+
+  const handleShare = (platform) => {
+    const url = encodeURIComponent(window.location.href);
+    const text = encodeURIComponent("My Cruisy Travel Getaway ✈️");
+    if (platform === 'pinterest') window.open(`https://pinterest.com/pin/create/button/?url=${url}&description=${text}`, '_blank');
+    if (platform === 'facebook') window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
+    if (platform === 'mail') window.open(`mailto:?subject=My Cruisy Travel Getaway&body=${text} ${url}`, '_blank');
+    if (platform === 'instagram') alert("To share on Instagram: \n1. Click 'Save / Print PDF' \n2. Save the image to your phone \n3. Post to Instagram!");
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
-             <div className="w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm" style={{ borderColor: BRAND.primary }}>
-              <img src={BRAND.logoUrl} alt="Logo" className="w-full h-full object-cover" /> 
-            </div>
-            <span className="text-xl tracking-tight hidden sm:block" style={{ fontFamily: BRAND.fontHeader, color: '#333' }}>
-              CRUISY<span style={{ color: BRAND.primary }}>TRAVEL</span>
-            </span>
+    <div className="min-h-screen bg-slate-50 pb-20">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+         <button onClick={() => setView('home')} className="text-gray-500 font-bold text-sm flex items-center hover:text-brand"><ArrowLeft size={16} className="mr-1"/> Home</button>
+         <span className="text-teal-600 font-bold text-sm hidden md:inline">Style Board Creator</span>
+         <button onClick={() => setView('mybag')} className="text-gray-500 font-bold text-sm flex items-center hover:text-brand">Bag <ArrowRight size={16} className="ml-1"/></button>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          
+          <div className="lg:col-span-4 space-y-6 order-2 lg:order-1">
+             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                <h3 className="font-header text-lg text-gray-800 mb-4">1. Choose Theme</h3>
+                <div className="grid grid-cols-2 gap-3">
+                   {Object.keys(THEMES).map(t => (
+                     <button key={t} onClick={() => setCurrentTheme(t)} className={`flex items-center p-3 rounded-xl border-2 transition-all ${currentTheme === t ? 'border-teal-500 bg-cyan-50 text-teal-700' : 'border-transparent bg-gray-50 text-gray-500 hover:bg-gray-100'}`}>
+                       <span className="mr-2">{THEMES[t].icon}</span><span className="text-sm font-bold">{t}</span>
+                     </button>
+                   ))}
+                </div>
+             </div>
+
+             <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100 h-[600px] flex flex-col">
+                <h3 className="font-header text-lg text-gray-800 mb-4">2. Add Items</h3>
+                <div className="flex border-b border-gray-100 mb-4 overflow-x-auto">
+                  {['Vibes', 'Essentials', 'Photos', 'Stickers'].map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 pb-3 px-2 text-sm font-bold transition-colors whitespace-nowrap ${activeTab === tab ? 'text-teal-600 border-b-2 border-teal-600' : 'text-gray-400 hover:text-gray-600'}`}>{tab}</button>
+                  ))}
+                </div>
+                
+                <div className="overflow-y-auto flex-1 pr-2 space-y-3 custom-scroll">
+                   {(activeTab === 'Vibes' ? vibeItems : activeTab === 'Essentials' ? ESSENTIALS_DATA : []).map(item => (
+                     <div key={item.id} onClick={() => addToBoard(item, 'product')} className="flex items-center p-2 rounded-xl hover:bg-gray-50 cursor-pointer group border border-transparent hover:border-gray-100 transition-all">
+                        <img src={item.img} alt={item.name} className="w-12 h-12 rounded-lg object-cover mr-3 shadow-sm" />
+                        <div className="flex-1"><p className="font-bold text-sm text-gray-800">{item.name}</p><p className="text-xs text-gray-400">${item.price}</p></div>
+                        <Plus size={18} className="text-gray-300 group-hover:text-teal-600"/>
+                     </div>
+                   ))}
+                   {activeTab === 'Photos' && (
+                     <div className="grid grid-cols-2 gap-3">
+                        {SCENIC_PHOTOS.map(p => (
+                          <div key={p.id} onClick={() => addToBoard({name: p.name, img: p.url}, 'photo')} className="relative aspect-square rounded-xl overflow-hidden cursor-pointer group hover:opacity-90">
+                             <img src={p.url} className="w-full h-full object-cover" />
+                             <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+                          </div>
+                        ))}
+                     </div>
+                   )}
+                   {activeTab === 'Stickers' && (
+                     <div className="grid grid-cols-3 gap-3">
+                       {STICKERS.map(s => (
+                         <button key={s.id} onClick={() => addToBoard({name: s.content}, 'sticker')} className={`h-20 rounded-xl bg-gray-50 flex items-center justify-center text-3xl hover:bg-gray-100 hover:scale-105 transition-all ${s.type === 'text' ? 'text-xs font-bold uppercase tracking-widest px-2 text-center bg-black text-white' : ''}`}>{s.content}</button>
+                       ))}
+                       <button onClick={() => addToBoard({name: 'Note'}, 'note')} className="h-20 rounded-xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 hover:border-teal-500 hover:text-teal-500"><Type size={20} className="mb-1"/><span className="text-xs font-bold">Note</span></button>
+                     </div>
+                   )}
+                </div>
+             </div>
           </div>
-          <div className="flex gap-2">
-            <Button variant="ghost" onClick={() => setView('itinerary')} className="relative">
-              <Calendar size={20} className={itinerary.length > 0 ? "text-[#34a4b8]" : "text-gray-400"} />
-              <span className="hidden sm:inline">My Trip</span>
-              {itinerary.length > 0 && (
-                <span className="absolute top-1 right-1 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold">{itinerary.length}</span>
-              )}
-            </Button>
+
+          <div className="lg:col-span-8 flex flex-col items-center order-1 lg:order-2">
+             <div id="print-area" className={`w-full max-w-[600px] aspect-[3/4] ${theme.bg} ${theme.border} shadow-2xl relative overflow-hidden transition-all duration-500 p-8 flex flex-col`}>
+                <div className="absolute inset-0 pointer-events-none z-0">{theme.decoration}</div>
+                
+                {/* BRANDING HEADER */}
+                <div className="text-center mb-8 z-10 relative flex flex-col items-center">
+                   <img src={BRAND_LOGO} alt="Cruisy Travel" className="h-12 w-auto mb-2 opacity-90 mix-blend-multiply" />
+                   <h2 className={`text-3xl font-header ${theme.text} drop-shadow-sm leading-tight`}>
+                     My Cruisy Travel Getaway
+                   </h2>
+                </div>
+
+                <div className="flex-1 grid grid-cols-4 gap-4 content-start relative z-10 auto-rows-min">
+                   {validBoardItems.map((item, index) => (
+                     <div 
+                        key={item.boardId} 
+                        className={`relative group animate-in fade-in zoom-in duration-300 ${
+                          item.size === 'medium' ? 'col-span-2 row-span-2' : 
+                          item.size === 'large' ? 'col-span-2 row-span-2' : 
+                          'col-span-1'
+                        }`}
+                     >
+                        <div className="absolute -top-2 -right-2 z-30 flex opacity-0 group-hover:opacity-100 transition-opacity gap-1">
+                           <button onClick={(e) => {e.stopPropagation(); moveItem(index, 'left');}} className="bg-white text-gray-600 rounded-full p-1 shadow-md hover:bg-gray-100" title="Move Left"><ArrowLeft size={10}/></button>
+                           <button onClick={(e) => {e.stopPropagation(); moveItem(index, 'right');}} className="bg-white text-gray-600 rounded-full p-1 shadow-md hover:bg-gray-100" title="Move Right"><ArrowRight size={10}/></button>
+                           
+                           {/* RESIZE BUTTON - HIDDEN FOR STICKERS */}
+                           {item.type !== 'sticker' && (
+                             <button onClick={(e) => {e.stopPropagation(); toggleSize(item.boardId);}} className="bg-gray-800 text-white rounded-full p-1 shadow-md"><Maximize2 size={10}/></button>
+                           )}
+                           
+                           <button onClick={(e) => {e.stopPropagation(); removeFromBoard(item.boardId);}} className="bg-red-500 text-white rounded-full p-1 shadow-md"><X size={10}/></button>
+                        </div>
+
+                        {(item.type === 'product' || item.type === 'photo') && (
+                          <div className={`relative w-full h-full bg-white p-2 shadow-md transform transition-transform overflow-hidden ${item.type === 'product' ? 'rounded-none' : 'rounded-none'}`} style={{transform: `rotate(${item.rotation}deg)`}}>
+                             <img src={item.img} alt={item.name} className="w-full h-full object-cover border border-gray-100" />
+                             {item.type === 'product' && <div className="absolute bottom-0 left-0 right-0 bg-white/90 p-1 text-[10px] font-bold text-center truncate">{item.name}</div>}
+                          </div>
+                        )}
+                        
+                        {item.type === 'sticker' && (
+                          <div className="flex justify-center items-center h-full w-full" style={{transform: `rotate(${item.rotation}deg)`}}>
+                             <span className="text-6xl drop-shadow-md filter">{item.name}</span>
+                          </div>
+                        )}
+                        
+                        {item.type === 'note' && (
+                          <div className="bg-white p-4 shadow-lg h-full relative" style={{transform: `rotate(${item.rotation}deg)`, background: 'linear-gradient(to bottom, #fff 0%, #fff 100%), linear-gradient(to bottom, #dbeafe 1px, transparent 1px)', backgroundSize: '100% 24px'}}>
+                             <div className="absolute top-2 right-2 opacity-40"><Compass size={16} className="text-brand"/></div>
+                             <textarea placeholder="Write here..." className="w-full h-full bg-transparent border-none text-sm text-gray-700 focus:ring-0 resize-none leading-[24px]" style={{fontFamily: '"Patrick Hand", cursive'}}/>
+                          </div>
+                        )}
+                     </div>
+                   ))}
+                   {validBoardItems.length === 0 && <div className="col-span-4 h-64 flex flex-col items-center justify-center text-center opacity-30"><Camera size={48} className={theme.text}/><p className={`mt-2 font-bold ${theme.text}`}>Start Creating</p><p className="text-xs">Add items from the menu</p></div>}
+                </div>
+             </div>
+
+             <div className="mt-8 flex flex-wrap justify-center gap-4">
+                <button onClick={shuffleLayout} className="flex items-center px-6 py-3 rounded-xl bg-white border border-gray-200 text-gray-700 font-bold hover:bg-gray-50 transition-colors shadow-sm"><Shuffle size={18} className="mr-2"/> Shuffle Layout</button>
+                <button onClick={() => setBoardItems([])} className="px-6 py-3 rounded-xl text-gray-500 font-bold hover:text-red-500 transition-colors">Clear</button>
+                <button onClick={() => window.print()} className="flex items-center px-8 py-3 rounded-xl bg-gray-900 text-white font-bold shadow-lg hover:bg-teal-600 transition-all"><Download size={18} className="mr-2"/> Save / Print PDF</button>
+                
+                <div className="flex gap-2 ml-4 border-l border-gray-200 pl-4 items-center">
+                   <span className="text-xs font-bold text-gray-400 mr-2">SHARE:</span>
+                   <button onClick={() => handleShare('facebook')} className="p-2 bg-blue-600 text-white rounded-full hover:scale-110 transition-transform"><Facebook size={16}/></button>
+                   <button onClick={() => handleShare('pinterest')} className="p-2 bg-red-600 text-white rounded-full hover:scale-110 transition-transform"><Pin size={16}/></button>
+                   <button onClick={() => handleShare('instagram')} className="p-2 bg-pink-600 text-white rounded-full hover:scale-110 transition-transform"><Instagram size={16}/></button>
+                   <button onClick={() => handleShare('mail')} className="p-2 bg-gray-500 text-white rounded-full hover:scale-110 transition-transform"><Mail size={16}/></button>
+                </div>
+             </div>
           </div>
         </div>
-      </header>
+      </div>
+    </div>
+  );
+};
 
-      <main>
-        {view === 'search' && <SearchView handleSearch={handleSearch} destinationSearch={destinationSearch} setDestinationSearch={setDestinationSearch} />}
-        {view === 'loading' && <LoadingView destinationSearch={destinationSearch} />}
-        {view === 'list' && <ActivityListView searchResults={searchResults} setView={setView} setSelectedActivity={setSelectedActivity} itinerary={itinerary} addToItinerary={addToItinerary} />}
-        {view === 'itinerary' && <ItineraryView itinerary={itinerary} setView={setView} essentials={essentials} toggleBooked={toggleBooked} removeFromItinerary={removeFromItinerary} handleEmailItinerary={handleEmailItinerary} destinationSearch={destinationSearch} searchResults={searchResults} />}
-        {view === 'detail' && <DetailView selectedActivity={selectedActivity} itinerary={itinerary} setView={setView} addToItinerary={addToItinerary} searchResults={searchResults} />}
-        {view === 'wizard' && <WizardView setView={setView} />}
-      </main>
+// ... Planner, MyBag, and Main App ...
+const Planner = ({ addToBag, setView }) => (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 bg-slate-50 min-h-screen">
+    <div className="flex justify-between items-center mb-8">
+       <button onClick={() => setView('home')} className="flex items-center text-gray-500 hover:text-teal-600 font-bold"><ArrowLeft size={18} className="mr-2"/> Home</button>
+       <button onClick={() => setView('styleboard')} className="flex items-center bg-white text-teal-600 border border-teal-600 px-4 py-2 rounded-lg font-bold hover:bg-teal-600 hover:text-white transition-all">Go to Style Board <ArrowRight size={18} className="ml-2"/></button>
+    </div>
+    <div className="text-center mb-12">
+      <h2 className="text-4xl font-header text-gray-900 mb-4">Essentials List</h2>
+      <p className="text-lg text-gray-500">Quick-add the basics to your shopping bag.</p>
+    </div>
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       {ESSENTIALS_DATA.map(item => (
+         <div key={item.id} className="bg-white p-4 rounded-2xl shadow-sm flex items-center justify-between group hover:border-teal-500 border border-transparent transition-all">
+            <div className="flex items-center">
+               <img src={item.img} className="w-16 h-16 rounded-lg object-cover mr-4 shadow-sm border border-gray-100" />
+               <div><p className="font-bold text-gray-800">{item.name}</p><p className="text-xs text-gray-400">${item.price}</p></div>
+            </div>
+            <button onClick={() => addToBag(item)} className="p-2 bg-gray-50 rounded-full hover:bg-teal-600 hover:text-white transition-all"><Plus size={18}/></button>
+         </div>
+       ))}
+    </div>
+  </div>
+);
+
+const MyBag = ({ myBag, setMyBag, removeFromBag, toggleCheck, estimatedTotal, handleBuy, setView }) => {
+  return (
+    <div className="max-w-3xl mx-auto px-4 py-12 min-h-screen">
+      <div className="flex justify-between items-center mb-8">
+         <button onClick={() => setView('planner')} className="flex items-center text-gray-500 hover:text-teal-600 font-bold"><ArrowLeft size={18} className="mr-2"/> Back to Essentials</button>
+         <button onClick={() => setView('styleboard')} className="flex items-center text-teal-600 hover:text-gray-900 font-bold">Go to Style Board <ArrowRight size={18} className="ml-2"/></button>
+      </div>
+      <div className="flex items-center justify-between mb-8">
+         <h2 className="text-3xl font-header text-gray-900">Your Trip Kit</h2>
+      </div>
+      {myBag.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+           <ShoppingBag size={64} className="mx-auto text-gray-200 mb-4"/>
+           <p className="text-gray-500">Empty Bag.</p>
+           <button onClick={() => setView('styleboard')} className="mt-4 font-bold text-teal-600">Create a Board</button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+           <div className="p-6 bg-gray-50 flex justify-between items-center border-b border-gray-100">
+              <span className="font-bold text-gray-500 text-xs uppercase">{myBag.length} Items</span>
+              <span className="font-header text-2xl text-gray-900">${estimatedTotal}</span>
+           </div>
+           <div className="divide-y divide-gray-50">
+             {myBag.map(item => (
+               <div key={item.id} className="p-4 flex items-center justify-between hover:bg-gray-50">
+                  <div className="flex items-center">
+                     <button onClick={() => toggleCheck(item.id)} className={`mr-4 ${item.checked ? 'text-teal-600' : 'text-gray-300'}`}>{item.checked ? <CheckSquare size={24}/> : <Square size={24}/>}</button>
+                     {item.img && <img src={item.img} className="w-10 h-10 rounded-md object-cover mr-3" />}
+                     <span className={`font-medium ${item.checked ? 'line-through text-gray-300' : 'text-gray-800'}`}>{item.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                     <button onClick={() => handleBuy(item.name)} className="px-3 py-1.5 bg-teal-600 text-white text-xs font-bold rounded-lg hover:bg-cyan-600">Amazon</button>
+                     <button onClick={() => removeFromBag(item.id)} className="p-2 text-gray-300 hover:text-red-500"><Trash2 size={18}/></button>
+                  </div>
+               </div>
+             ))}
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default function App() {
+  const [view, setView] = useState('home'); 
+  const [myBag, setMyBag] = useState([]);
+
+  const addToBag = (item) => {
+    const bagItem = { ...item, id: item.id + '_' + Date.now(), checked: false };
+    setMyBag([...myBag, bagItem]);
+  };
+
+  const removeFromBag = (id) => setMyBag(myBag.filter(i => i.id !== id));
+  const toggleCheck = (id) => setMyBag(myBag.map(i => i.id === id ? { ...i, checked: !i.checked } : i));
+  const estimatedTotal = useMemo(() => myBag.reduce((acc, curr) => acc + curr.price, 0).toFixed(2), [myBag]);
+
+  const handleBuy = (itemName) => {
+    window.open(`https://www.amazon.com/s?k=${encodeURIComponent(itemName)}&tag=${AMAZON_TAG}`, '_blank');
+  };
+
+  return (
+    <div className="min-h-screen bg-white font-body text-gray-800 flex flex-col">
+      <div className="print:hidden">
+        <Header view={view} setView={setView} myBagCount={myBag.length} />
+      </div>
+      <div className="flex-grow">
+        {view === 'home' && <Hero setView={setView} />}
+        {view === 'planner' && <Planner addToBag={addToBag} setView={setView} />}
+        {view === 'styleboard' && <StyleBoard addToBag={addToBag} setView={setView} />}
+        {view === 'mybag' && <MyBag myBag={myBag} setMyBag={setMyBag} removeFromBag={removeFromBag} toggleCheck={toggleCheck} estimatedTotal={estimatedTotal} handleBuy={handleBuy} setView={setView} />}
+      </div>
+      <div className="print:hidden">
+        <footer className="bg-gray-50 border-t border-gray-100 py-12 text-center text-gray-400 text-sm">&copy; 2025-2026 Cruisy Travel.</footer>
+      </div>
+      <style>{`
+        @media print {
+          @page { margin: 0; size: auto; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          #print-area { position: fixed; top: 0; left: 0; width: 100%; height: 100%; margin: 0; border-radius: 0; z-index: 9999; }
+          body > *:not(.flex-grow) { display: none; }
+          .flex-grow > *:not(:has(#print-area)) { display: none; }
+        }
+      `}</style>
     </div>
   );
 }
