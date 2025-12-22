@@ -710,7 +710,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
+                      <div className="text-gray-400"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -967,7 +967,12 @@ export default function App() {
         {/* Added Breadcrumb */}
         <div className="bg-slate-50 border-b border-slate-100">
            <div className="max-w-6xl mx-auto px-4 py-1">
-             <a href="https://cruisytravel.com" className="text-xs font-medium text-slate-500 hover:text-[#34a4b8] flex items-center gap-1 transition-colors">
+             <a 
+               href="https://cruisytravel.com" 
+               target="_blank" 
+               rel="noopener noreferrer"
+               className="text-xs font-medium text-slate-500 hover:text-[#34a4b8] flex items-center gap-1 transition-colors"
+             >
                ← Back to Home
              </a>
            </div>
