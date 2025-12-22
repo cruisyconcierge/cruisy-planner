@@ -446,7 +446,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <CheckSquare size={24} />
           </div>
           <h3 className="font-bold text-gray-700">3. Book & Go</h3>
-          <p className="text-sm text-gray-500">Use our direct links to book flights, stays, and fun.</p>
+          <p className="text-sm text-gray-500">Use our direct links to book activities, flights, stays, and more.</p>
        </div>
     </div>
 
