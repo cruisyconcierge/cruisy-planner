@@ -710,7 +710,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
+                      <div className="text-gray-400"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
