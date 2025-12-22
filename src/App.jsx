@@ -710,7 +710,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -963,6 +963,16 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#f8fafc]" style={{ fontFamily: BRAND.fontBody }}>
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm print:hidden">
+        
+        {/* Added Breadcrumb */}
+        <div className="bg-slate-50 border-b border-slate-100">
+           <div className="max-w-6xl mx-auto px-4 py-1">
+             <a href="https://cruisytravel.com" className="text-xs font-medium text-slate-500 hover:text-[#34a4b8] flex items-center gap-1 transition-colors">
+               ← Back to Home
+             </a>
+           </div>
+        </div>
+
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => setView('search')}>
              <div className="w-10 h-10 rounded-full overflow-hidden border-2 shadow-sm" style={{ borderColor: BRAND.primary }}>
