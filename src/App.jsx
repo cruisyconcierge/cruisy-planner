@@ -187,7 +187,6 @@ const fetchRealActivities = async (destinationSelection) => {
       carPartners,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
-      // Removed Weather
     };
 
   } catch (error) {
@@ -467,7 +466,20 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
-          <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
+          <div className="flex flex-col gap-1">
+            <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
+            {/* KEY WEST SPECIFIC LINK */}
+            {searchResults.destinationName.includes("Key West") && (
+                <a 
+                  href="https://cruisytravel.com/key-west" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
+                >
+                  Explore our complete Key West Travel Guide <ExternalLink size={12}/>
+                </a>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex flex-col lg:flex-row gap-8">
@@ -501,7 +513,31 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
               );
             })}
           </div>
-          <div onClick={() => window.open(searchResults.destinationPageUrl, '_blank')} className="bg-[#34a4b8]/5 border-2 border-dashed border-[#34a4b8]/30 rounded-xl p-6 text-center cursor-pointer hover:bg-[#34a4b8]/10 transition-colors group">
+
+          {/* DISCLAIMER UNDER CURATED EXPERIENCES */}
+          <div className="text-xs text-center text-gray-400 mt-4 px-2">
+              <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
+              We may earn a small commission if you book through our links, at no extra cost to you.
+          </div>
+
+          {/* KEY WEST SPECIFIC SANDBAR BANNER */}
+          {searchResults.destinationName.includes("Key West") && (
+            <div 
+               onClick={() => window.open('https://keywest-sandbar-finder.cruisytravel.com/', '_blank')}
+               className="relative rounded-xl overflow-hidden h-32 cursor-pointer group shadow-md mt-6"
+            >
+               <img 
+                 src="https://images.pexels.com/photos/3426880/pexels-photo-3426880.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2" 
+                 alt="Key West Sandbar" 
+                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+               />
+               <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <h3 className="text-white font-bold text-2xl drop-shadow-md" style={{ fontFamily: BRAND.fontHeader }}>Find Your Perfect Key West Sandbar</h3>
+               </div>
+            </div>
+          )}
+
+          <div onClick={() => window.open(searchResults.destinationPageUrl, '_blank')} className="bg-[#34a4b8]/5 border-2 border-dashed border-[#34a4b8]/30 rounded-xl p-6 text-center cursor-pointer hover:bg-[#34a4b8]/10 transition-colors group mt-6">
              <h3 className="text-lg font-bold text-gray-800 mb-1">See More {searchResults.destinationName} Activities</h3>
              <span className="inline-flex items-center gap-2 font-bold text-[#34a4b8] text-sm">Browse Full Catalog <ArrowRight size={14}/></span>
           </div>
@@ -515,6 +551,11 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                   </div>
                 ))}
              </div>
+          </div>
+          {/* DISCLAIMER AT THE VERY BOTTOM OF THE LIST VIEW */}
+          <div className="text-xs text-center text-gray-400 mt-8 px-2 pb-8 border-t border-gray-100 pt-4">
+              <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
+              We may earn a small commission if you book through our links, at no extra cost to you.
           </div>
         </div>
         <div className="lg:w-80 space-y-6">
@@ -710,7 +751,7 @@ const ItineraryView = ({ itinerary, setView, essentials, toggleBooked, removeFro
                           )}
                         </div>
                       </div>
-                      <div className="text-gray-400"><IconComponent size={20}/></div>
+                      <div className="text-gray-400 mt-2 sm:mt-0 self-start sm:self-center"><IconComponent size={20}/></div>
                    </div>
                  )
                })}
@@ -973,7 +1014,7 @@ export default function App() {
                rel="noopener noreferrer"
                className="text-xs font-medium text-slate-500 hover:text-[#34a4b8] flex items-center gap-1 transition-colors"
              >
-               ← Back to Home
+               ← Back to cruisytravel.com
              </a>
            </div>
         </div>
