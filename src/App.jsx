@@ -38,6 +38,7 @@ const AVAILABLE_DESTINATIONS = [
 const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
+  "St Thomas": "https://cruisytravel.com/st-thomas-activities/",
 };
 
 // Map IDs to Icons for Checklist
@@ -187,6 +188,7 @@ const fetchRealActivities = async (destinationSelection) => {
       carPartners,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
+      // Removed Weather
     };
 
   } catch (error) {
@@ -431,7 +433,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={24} />
           </div>
           <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
+          <p className="text-sm text-gray-500">Pick from our curated list of top destinations.</p>
        </div>
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -477,6 +479,17 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                   className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
                 >
                   Explore our complete Key West Travel Guide <ExternalLink size={12}/>
+                </a>
+            )}
+             {/* ST THOMAS SPECIFIC LINK */}
+            {searchResults.destinationName.includes("St Thomas") && (
+                <a 
+                  href="https://cruisytravel.com/st-thomas/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
+                >
+                  Explore our complete St Thomas Travel Guide <ExternalLink size={12}/>
                 </a>
             )}
           </div>
@@ -551,11 +564,11 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
                   </div>
                 ))}
              </div>
-          </div>
-          {/* DISCLAIMER AT THE VERY BOTTOM OF THE LIST VIEW */}
-          <div className="text-xs text-center text-gray-400 mt-8 px-2 pb-8 border-t border-gray-100 pt-4">
-              <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
-              We may earn a small commission if you book through our links, at no extra cost to you.
+             {/* DISCLAIMER AT THE VERY BOTTOM OF THE LIST VIEW */}
+             <div className="text-xs text-center text-gray-400 mt-8 px-2 pb-8 border-t border-gray-100 pt-4">
+                <span className="flex items-center justify-center gap-1"><Info size={10}/> Transparency:</span>
+                We may earn a small commission if you book through our links, at no extra cost to you.
+             </div>
           </div>
         </div>
         <div className="lg:w-80 space-y-6">
