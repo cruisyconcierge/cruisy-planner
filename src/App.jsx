@@ -34,11 +34,34 @@ const AVAILABLE_DESTINATIONS = [
   "Somewhere Else" // Triggers the Wizard
 ];
 
-// MANUAL URL OVERRIDES
-const DESTINATION_URLS = {
+// --- 1a. URL CONFIGURATION (Manage your links here) ---
+
+// Links for the "See More Activities" / "Browse Full Catalog" button
+const ACTIVITIES_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
   "St Thomas": "https://cruisytravel.com/st-thomas-activities/",
+  "Honolulu": "https://cruisytravel.com/honolulu-activities/",
+  "Cozumel": "https://cruisytravel.com/cozumel-activities/",
+  "Sydney": "https://cruisytravel.com/sydney-activities/",
+  "Barcelona": "https://cruisytravel.com/barcelona-activities/",
+  "Chania": "https://cruisytravel.com/chania-activities/",
+  "Orlando": "https://cruisytravel.com/orlando-activities/",
+  "Miami": "https://cruisytravel.com/miami-activities/",
+};
+
+// Links for the "Explore our complete [Dest] Travel Guide" text
+const GUIDE_URLS = {
+  "Key West": "https://cruisytravel.com/key-west",
+  "Nassau": "https://cruisytravel.com/nassau",
+  "St Thomas": "https://cruisytravel.com/st-thomas",
+  "Honolulu": "https://cruisytravel.com/honolulu",
+  "Cozumel": "https://cruisytravel.com/cozumel",
+  "Sydney": "https://cruisytravel.com/sydney",
+  "Barcelona": "https://cruisytravel.com/barcelona",
+  "Chania": "https://cruisytravel.com/chania",
+  "Orlando": "https://cruisytravel.com/orlando",
+  "Miami": "https://cruisytravel.com/miami",
 };
 
 // Map IDs to Icons for Checklist
@@ -178,11 +201,16 @@ const fetchRealActivities = async (destinationSelection) => {
     }
 
     // Check for manual override, then hub link, then search fallback
-    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
+    // Note: Use ACTIVITIES_URLS constant here
+    const destinationUrl = ACTIVITIES_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
+    
+    // Get the Guide URL for the sub-header link
+    const guideUrl = GUIDE_URLS[searchTerm] || null;
 
     return {
       destinationName: hub.title?.rendered || searchTerm, 
       destinationPageUrl: destinationUrl,
+      guideUrl: guideUrl,
       stayPartners,
       flightPartners,
       carPartners,
@@ -470,26 +498,15 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-            {/* KEY WEST SPECIFIC LINK */}
-            {searchResults.destinationName.includes("Key West") && (
+            {/* DESTINATION GUIDE LINK */}
+            {searchResults.guideUrl && (
                 <a 
-                  href="https://cruisytravel.com/key-west" 
+                  href={searchResults.guideUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
                 >
-                  Explore our complete Key West Travel Guide <ExternalLink size={12}/>
-                </a>
-            )}
-             {/* ST THOMAS SPECIFIC LINK */}
-            {searchResults.destinationName.includes("St Thomas") && (
-                <a 
-                  href="https://cruisytravel.com/st-thomas/" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
-                >
-                  Explore our complete St Thomas Travel Guide <ExternalLink size={12}/>
+                  Explore our complete {searchResults.destinationName} Travel Guide <ExternalLink size={12}/>
                 </a>
             )}
           </div>
