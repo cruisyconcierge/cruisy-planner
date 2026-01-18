@@ -4,7 +4,7 @@ import {
   Sun, Star, Save, User, ArrowRight, Check, Loader2, 
   X, Ship, ShoppingBag, ExternalLink, Ticket, 
   ChevronRight, Globe, Plus, Trash2, Clock, Search, Home, Mail, Printer, CheckSquare, Square, Car, Utensils, Info, ChevronDown, ShieldCheck,
-  Palmtree, Martini, Mountain, Heart // Icons for Wizard
+  Palmtree, Martini, Mountain, Heart
 } from 'lucide-react';
 
 // --- 1. CONFIGURATION & CONSTANTS ---
@@ -17,7 +17,6 @@ const BRAND = {
   logoUrl: 'https://cruisytravel.com/wp-content/uploads/2024/01/cropped-20240120_025955_0000.png'
 };
 
-// --- EMAIL SETTINGS ---
 const CONCIERGE_EMAIL = "hello@cruisytravel.com";
 
 const AVAILABLE_DESTINATIONS = [
@@ -31,11 +30,10 @@ const AVAILABLE_DESTINATIONS = [
   "Chania, Crete (Greece)",
   "Orlando, Florida",
   "Miami, Florida",
-  "Somewhere Else" // Triggers the Wizard
+  "Somewhere Else"
 ];
 
-// --- 1a. URL CONFIGURATION ---
-const ACTIVITIES_URLS = {
+const DESTINATION_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
   "St Thomas": "https://cruisytravel.com/st-thomas-activities/",
@@ -61,7 +59,6 @@ const GUIDE_URLS = {
   "Miami": "https://cruisytravel.com/miami",
 };
 
-// Map IDs to Icons for Checklist
 const ICON_MAP = {
   flight: Plane,
   hotel: Hotel,
@@ -70,7 +67,6 @@ const ICON_MAP = {
   insurance: ShieldCheck
 };
 
-// --- GLOBAL GEAR (Affiliate Links) ---
 const GLOBAL_GEAR = [
   { 
     name: 'Vacation Classic Sunscreen SPF 30 (3-Pack)', 
@@ -91,12 +87,10 @@ const GLOBAL_GEAR = [
 const fetchRealActivities = async (destinationSelection) => {
   try {
     const searchTerm = destinationSelection.split(',')[0].trim();
-    // Using encodeURIComponent handles spaces in city names safely (e.g. "Key West" -> "Key%20West")
     const safeSearchTerm = encodeURIComponent(searchTerm);
     
     // 1. Fetch Location Hub
     const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${safeSearchTerm}&acf_format=standard`);
-    if (!destRes.ok) throw new Error(`Location fetch failed: ${destRes.status}`);
     const destData = await destRes.json();
     
     const hub = destData.length > 0 ? destData[0] : {}; 
@@ -104,7 +98,6 @@ const fetchRealActivities = async (destinationSelection) => {
 
     // 2. Fetch Activities
     const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${safeSearchTerm}&_embed&per_page=20&acf_format=standard`);
-    if (!actRes.ok) throw new Error(`Activities fetch failed: ${actRes.status}`);
     const actData = await actRes.json();
 
     // 3. Map WordPress Data
@@ -129,7 +122,7 @@ const fetchRealActivities = async (destinationSelection) => {
       };
     });
 
-    // 4. DYNAMIC PARTNER LOGIC (Hotels)
+    // 4. HOTELS LOGIC
     const potentialStays = [
       { name: "Booking.com", key: "booking_link", icon: Hotel, color: "#003580" },
       { name: "Vrbo", key: "vrbo_link", icon: Home, color: "#1e3a8a" },
@@ -144,7 +137,6 @@ const fetchRealActivities = async (destinationSelection) => {
       .filter(p => acf[p.key]) 
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
       
-    // Fallback if no hotel links provided
     if (stayPartners.length === 0) {
        stayPartners = [{
           name: "Find Hotels",
@@ -155,7 +147,7 @@ const fetchRealActivities = async (destinationSelection) => {
        }];
     }
 
-    // 5. DYNAMIC PARTNER LOGIC (Flights)
+    // 5. FLIGHTS LOGIC
     const potentialFlights = [
       { name: "Kiwi.com", key: "kiwi_flight_link", icon: Plane, color: "#00a991" },
       { name: "Booking.com Flights", key: "booking_flight_link", icon: Plane, color: "#003580" },
@@ -166,7 +158,6 @@ const fetchRealActivities = async (destinationSelection) => {
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
     
-    // Fallback Flight Link
     let genericFlightLink = acf.flight_affiliate_link || `https://www.skyscanner.com/transport/flights/to/${searchTerm.substring(0,3)}`;
     
     if (flightPartners.length === 0) {
@@ -179,7 +170,7 @@ const fetchRealActivities = async (destinationSelection) => {
         }];
     }
 
-    // 6. DYNAMIC PARTNER LOGIC (Cars)
+    // 6. CARS LOGIC
     const potentialCars = [
       { name: "Carla Car Rentals", key: "carl_rental_link", icon: Car, color: "#ff5a00" },
       { name: "Holiday Autos", key: "holiday_autos_link", icon: Car, color: "#0073ce" }
@@ -201,7 +192,6 @@ const fetchRealActivities = async (destinationSelection) => {
         }];
     }
 
-    // Check for manual override, then hub link, then search fallback
     const destinationUrl = ACTIVITIES_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${safeSearchTerm}`;
     const guideUrl = GUIDE_URLS[searchTerm] || null;
 
@@ -214,8 +204,6 @@ const fetchRealActivities = async (destinationSelection) => {
       carPartners,
       diningLink: acf.dining_link || `https://cruisytravel.com/?s=${safeSearchTerm}+dining`,
       activities: mappedActivities,
-      // Weather removed (using static fallback in UI if needed, currently removed from UI)
-      weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
     };
 
   } catch (error) {
@@ -246,7 +234,14 @@ const Card = ({ children, className = '' }) => (
 
 // --- 4. SUB-VIEWS ---
 
-// Helper components for Wizard (Defined OUTSIDE WizardView to prevent focus loss)
+// *** THIS IS THE MISSING COMPONENT THAT CAUSED THE ERROR ***
+const LoadingView = ({ destinationSearch }) => (
+  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+    <Loader2 size={48} className="animate-spin text-[#34a4b8] mb-6" />
+    <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Scouting {destinationSearch}...</h2>
+  </div>
+);
+
 const WizardStep = ({ title, children }) => (
   <div className="animate-fade-in">
     <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" style={{ fontFamily: BRAND.fontHeader }}>{title}</h2>
@@ -271,7 +266,6 @@ const OptionButton = ({ label, icon: Icon, selected, onClick }) => (
   </button>
 );
 
-// --- NEW WIZARD COMPONENT ---
 const WizardView = ({ setView }) => {
   const [step, setStep] = useState(0);
   const [wizardData, setWizardData] = useState({
@@ -287,7 +281,6 @@ const WizardView = ({ setView }) => {
   const handleBack = () => step === 0 ? setView('search') : setStep(step - 1);
   
   const handleFinish = () => {
-    // Better Email Format
     const subject = `🌴 New Trip Request: ${wizardData.destination || 'Custom Destination'}`;
     const body = `Hi Cruisy Travel,\n\nI am interested in planning a new trip! Here are my details:\n\n` +
       `------------------------------------------\n` +
@@ -305,7 +298,6 @@ const WizardView = ({ setView }) => {
 
   const updateData = (key, value) => setWizardData(prev => ({...prev, [key]: value}));
 
-  // Success View after sending email
   if (isSubmitted) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center animate-fade-in">
@@ -423,7 +415,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={16} style={{ color: BRAND.primary }} /> Where are you going?
           </label>
           <div className="relative">
-            {/* DROPDOWN SELECTOR */}
             <div className="relative w-full">
               <select 
                 required 
@@ -453,14 +444,13 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
       </form>
     </Card>
 
-    {/* NEW SECTION: "How it works" to fill the vertical space */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16 text-center opacity-80">
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
             <MapPin size={24} />
           </div>
           <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
+          <p className="text-sm text-gray-500">Pick from our curated list of top destinations.</p>
        </div>
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -490,7 +480,6 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-            {/* DESTINATION GUIDE LINK */}
             {searchResults.guideUrl && (
                 <a 
                   href={searchResults.guideUrl} 
