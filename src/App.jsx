@@ -34,9 +34,7 @@ const AVAILABLE_DESTINATIONS = [
   "Somewhere Else" // Triggers the Wizard
 ];
 
-// --- 1a. URL CONFIGURATION (Manage your links here) ---
-
-// Links for the "See More Activities" / "Browse Full Catalog" button
+// --- 1a. URL CONFIGURATION ---
 const ACTIVITIES_URLS = {
   "Key West": "https://cruisytravel.com/key-west-activities/",
   "Nassau": "https://cruisytravel.com/nassau-activities/",
@@ -50,7 +48,6 @@ const ACTIVITIES_URLS = {
   "Miami": "https://cruisytravel.com/miami-activities/",
 };
 
-// Links for the "Explore our complete [Dest] Travel Guide" text
 const GUIDE_URLS = {
   "Key West": "https://cruisytravel.com/key-west",
   "Nassau": "https://cruisytravel.com/nassau",
@@ -94,16 +91,20 @@ const GLOBAL_GEAR = [
 const fetchRealActivities = async (destinationSelection) => {
   try {
     const searchTerm = destinationSelection.split(',')[0].trim();
+    // Using encodeURIComponent handles spaces in city names safely (e.g. "Key West" -> "Key%20West")
+    const safeSearchTerm = encodeURIComponent(searchTerm);
     
     // 1. Fetch Location Hub
-    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${searchTerm}&acf_format=standard`);
+    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${safeSearchTerm}&acf_format=standard`);
+    if (!destRes.ok) throw new Error(`Location fetch failed: ${destRes.status}`);
     const destData = await destRes.json();
     
     const hub = destData.length > 0 ? destData[0] : {}; 
     const acf = hub.acf || {};
 
     // 2. Fetch Activities
-    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${searchTerm}&_embed&per_page=20&acf_format=standard`);
+    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${safeSearchTerm}&_embed&per_page=20&acf_format=standard`);
+    if (!actRes.ok) throw new Error(`Activities fetch failed: ${actRes.status}`);
     const actData = await actRes.json();
 
     // 3. Map WordPress Data
@@ -150,7 +151,7 @@ const fetchRealActivities = async (destinationSelection) => {
           icon: Hotel,
           color: "#003580",
           textColor: "white",
-          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
+          url: `https://www.booking.com/searchresults.html?ss=${safeSearchTerm}`
        }];
     }
 
@@ -188,7 +189,7 @@ const fetchRealActivities = async (destinationSelection) => {
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
 
-    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`;
+    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${safeSearchTerm}`;
     
     if (carPartners.length === 0) {
         carPartners = [{
@@ -201,10 +202,7 @@ const fetchRealActivities = async (destinationSelection) => {
     }
 
     // Check for manual override, then hub link, then search fallback
-    // Note: Use ACTIVITIES_URLS constant here
-    const destinationUrl = ACTIVITIES_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
-    
-    // Get the Guide URL for the sub-header link
+    const destinationUrl = ACTIVITIES_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${safeSearchTerm}`;
     const guideUrl = GUIDE_URLS[searchTerm] || null;
 
     return {
@@ -214,9 +212,10 @@ const fetchRealActivities = async (destinationSelection) => {
       stayPartners,
       flightPartners,
       carPartners,
-      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${safeSearchTerm}+dining`,
       activities: mappedActivities,
-      // Removed Weather
+      // Weather removed (using static fallback in UI if needed, currently removed from UI)
+      weather: { temp: 82, condition: 'Sunny', icon: Sun }, 
     };
 
   } catch (error) {
@@ -461,7 +460,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={24} />
           </div>
           <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of top destinations.</p>
+          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
        </div>
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -479,13 +478,6 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
        </div>
     </div>
 
-  </div>
-);
-
-const LoadingView = ({ destinationSearch }) => (
-  <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
-    <Loader2 size={48} className="animate-spin text-[#34a4b8] mb-6" />
-    <h2 className="text-2xl font-bold text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Scouting {destinationSearch}...</h2>
   </div>
 );
 
