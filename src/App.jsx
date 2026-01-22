@@ -36,7 +36,7 @@ const AVAILABLE_DESTINATIONS = [
 
 // MANUAL URL OVERRIDES
 const DESTINATION_URLS = {
-  "Key West": "https://cruisytravel.com/key-west-activities/",
+  "Key West": "https://cruisytravel.com/key-west-featured-activities/", // UPDATED LINK
   "Nassau": "https://cruisytravel.com/nassau-activities/",
 };
 
@@ -185,8 +185,9 @@ const fetchRealActivities = async (destinationSelection) => {
       stayPartners,
       flightPartners,
       carPartners,
-      // Removed Dining & Weather
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
       activities: mappedActivities,
+      // Removed Weather
     };
 
   } catch (error) {
@@ -431,7 +432,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={24} />
           </div>
           <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of top destinations.</p>
+          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
        </div>
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
