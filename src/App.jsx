@@ -36,8 +36,29 @@ const AVAILABLE_DESTINATIONS = [
 
 // MANUAL URL OVERRIDES
 const DESTINATION_URLS = {
-  "Key West": "https://cruisytravel.com/key-west-featured-activities/", // UPDATED LINK
+  "Key West": "https://cruisytravel.com/key-west-featured-activities/", 
   "Nassau": "https://cruisytravel.com/nassau-activities/",
+  "St Thomas": "https://cruisytravel.com/st-thomas-activities/",
+  "Honolulu": "https://cruisytravel.com/honolulu-activities/",
+  "Cozumel": "https://cruisytravel.com/cozumel-activities/",
+  "Sydney": "https://cruisytravel.com/sydney-activities/",
+  "Barcelona": "https://cruisytravel.com/barcelona-activities/",
+  "Chania": "https://cruisytravel.com/chania-activities/",
+  "Orlando": "https://cruisytravel.com/orlando-activities/",
+  "Miami": "https://cruisytravel.com/miami-activities/",
+};
+
+const GUIDE_URLS = {
+  "Key West": "https://cruisytravel.com/key-west",
+  "Nassau": "https://cruisytravel.com/nassau",
+  "St Thomas": "https://cruisytravel.com/st-thomas",
+  "Honolulu": "https://cruisytravel.com/honolulu",
+  "Cozumel": "https://cruisytravel.com/cozumel",
+  "Sydney": "https://cruisytravel.com/sydney",
+  "Barcelona": "https://cruisytravel.com/barcelona",
+  "Chania": "https://cruisytravel.com/chania",
+  "Orlando": "https://cruisytravel.com/orlando",
+  "Miami": "https://cruisytravel.com/miami",
 };
 
 // Map IDs to Icons for Checklist
@@ -70,16 +91,20 @@ const GLOBAL_GEAR = [
 const fetchRealActivities = async (destinationSelection) => {
   try {
     const searchTerm = destinationSelection.split(',')[0].trim();
+    // Using encodeURIComponent handles spaces in city names safely (e.g. "Key West" -> "Key%20West")
+    const safeSearchTerm = encodeURIComponent(searchTerm);
     
     // 1. Fetch Location Hub
-    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${searchTerm}&acf_format=standard`);
+    const destRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/locations?search=${safeSearchTerm}&acf_format=standard`);
+    if (!destRes.ok) throw new Error(`Location fetch failed: ${destRes.status}`);
     const destData = await destRes.json();
     
     const hub = destData.length > 0 ? destData[0] : {}; 
     const acf = hub.acf || {};
 
     // 2. Fetch Activities
-    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${searchTerm}&_embed&per_page=20&acf_format=standard`);
+    const actRes = await fetch(`https://cruisytravel.com/wp-json/wp/v2/itineraries?search=${safeSearchTerm}&_embed&per_page=20&acf_format=standard`);
+    if (!actRes.ok) throw new Error(`Activities fetch failed: ${actRes.status}`);
     const actData = await actRes.json();
 
     // 3. Map WordPress Data
@@ -100,9 +125,14 @@ const fetchRealActivities = async (destinationSelection) => {
         excerpt: post.excerpt.rendered.replace(/<[^>]+>/g, ''), 
         description: post.content.rendered, 
         bookingUrl: bookUrl,
+        // NEW: Read the Sort Order field (Default to 999 if empty so they go to bottom)
+        sortOrder: Number(post.acf?.sort_order) || 999,
         tags: [] 
       };
     });
+
+    // NEW: Sort the activities based on the number you entered in WP
+    mappedActivities.sort((a, b) => a.sortOrder - b.sortOrder);
 
     // 4. DYNAMIC PARTNER LOGIC (Hotels)
     const potentialStays = [
@@ -126,7 +156,7 @@ const fetchRealActivities = async (destinationSelection) => {
           icon: Hotel,
           color: "#003580",
           textColor: "white",
-          url: `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(searchTerm)}`
+          url: `https://www.booking.com/searchresults.html?ss=${safeSearchTerm}`
        }];
     }
 
@@ -164,7 +194,7 @@ const fetchRealActivities = async (destinationSelection) => {
       .filter(p => acf[p.key])
       .map(p => ({ ...p, url: acf[p.key], textColor: p.textColor || "white" }));
 
-    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${encodeURIComponent(searchTerm)}`;
+    let genericCarLink = acf.car_affiliate_link || `https://www.rentalcars.com/search-results?locationName=${safeSearchTerm}`;
     
     if (carPartners.length === 0) {
         carPartners = [{
@@ -177,17 +207,19 @@ const fetchRealActivities = async (destinationSelection) => {
     }
 
     // Check for manual override, then hub link, then search fallback
-    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${searchTerm}`;
+    const destinationUrl = DESTINATION_URLS[searchTerm] || hub.link || `https://cruisytravel.com/?s=${safeSearchTerm}`;
+    const guideUrl = GUIDE_URLS[searchTerm] || null;
 
     return {
       destinationName: hub.title?.rendered || searchTerm, 
       destinationPageUrl: destinationUrl,
+      guideUrl: guideUrl,
       stayPartners,
       flightPartners,
       carPartners,
-      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${searchTerm}+dining`,
+      diningLink: acf.dining_link || `https://cruisytravel.com/?s=${safeSearchTerm}+dining`,
       activities: mappedActivities,
-      // Removed Weather
+      // Weather removed
     };
 
   } catch (error) {
@@ -432,7 +464,7 @@ const SearchView = ({ handleSearch, destinationSearch, setDestinationSearch }) =
             <MapPin size={24} />
           </div>
           <h3 className="font-bold text-gray-700">1. Choose Destination</h3>
-          <p className="text-sm text-gray-500">Pick from our curated list of tropical paradises.</p>
+          <p className="text-sm text-gray-500">Pick from our curated list of top destinations.</p>
        </div>
        <div className="p-4">
           <div className="w-12 h-12 bg-blue-100 text-[#34a4b8] rounded-full flex items-center justify-center mx-auto mb-3">
@@ -469,15 +501,15 @@ const ActivityListView = ({ searchResults, setView, setSelectedActivity, itinera
           <button onClick={() => setView('search')} className="text-sm font-medium text-slate-600 hover:text-[#34a4b8] mb-1 flex items-center gap-1">← Change Destination</button>
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl text-gray-800" style={{ fontFamily: BRAND.fontHeader }}>Top Picks for <span style={{ color: BRAND.primary }}>{searchResults.destinationName}</span></h2>
-            {/* KEY WEST SPECIFIC LINK */}
-            {searchResults.destinationName.includes("Key West") && (
+            {/* DESTINATION GUIDE LINK */}
+            {searchResults.guideUrl && (
                 <a 
-                  href="https://cruisytravel.com/key-west" 
+                  href={searchResults.guideUrl} 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-sm text-[#34a4b8] hover:underline flex items-center gap-1 font-medium"
                 >
-                  Explore our complete Key West Travel Guide <ExternalLink size={12}/>
+                  Explore our complete {searchResults.destinationName} Travel Guide <ExternalLink size={12}/>
                 </a>
             )}
           </div>
